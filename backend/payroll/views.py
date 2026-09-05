@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import SalaryRule, SalaryStructure, Payrun, Payslip
 from .serializers import SalaryRuleSerializer, SalaryStructureSerializer, PayrunSerializer, PayslipSerializer
+from .services import compute_payrun
 
 
 class SalaryRuleViewSet(viewsets.ModelViewSet):
@@ -16,14 +17,11 @@ class SalaryStructureViewSet(viewsets.ModelViewSet):
     serializer_class = SalaryStructureSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+
 class PayrunViewSet(viewsets.ModelViewSet):
     queryset = Payrun.objects.all()
     serializer_class = PayrunSerializer
     permission_classes = [permissions.IsAuthenticated]
-
-    # Step 1: create the scope only (structure + period). Status stays "draft".
-    # This is just the default `create()` from ModelViewSet — no override needed,
-    # since employee_ids defaults to [] and status defaults to "draft" already.
 
     @action(detail=True, methods=["post"])
     def select_employees(self, request, pk=None):
@@ -41,11 +39,19 @@ class PayrunViewSet(viewsets.ModelViewSet):
         payrun.employee_ids = employee_ids
         payrun.save()
 
-        # Create a draft Payslip per selected employee, skipping duplicates
-        # (unique_together on the model also guards this at the DB level).
         for emp_id in employee_ids:
             Payslip.objects.get_or_create(payrun=payrun, employee_id=emp_id)
 
+        return Response(PayrunSerializer(payrun).data)
+
+    @action(detail=True, methods=["post"])
+    def compute(self, request, pk=None):
+        """
+        Runs the payroll engine for every selected employee in this Payrun,
+        saving real PayslipLine rows and flipping status to 'computed'.
+        """
+        payrun = self.get_object()
+        compute_payrun(payrun)
         return Response(PayrunSerializer(payrun).data)
 
 
