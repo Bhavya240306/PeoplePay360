@@ -12,5 +12,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path("api/payroll/", include("payroll.urls")),
     path("api/", include("core.urls")),
+    path("api/accounts/", include("accounts.urls")),
+    path("api/timeoff/", include("timeoff.urls")),
     path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("api/audit/", include("audit.urls")),
 ]

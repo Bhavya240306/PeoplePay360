@@ -98,7 +98,7 @@ class Payslip(models.Model):
 
     payrun = models.ForeignKey(Payrun, on_delete=models.CASCADE, related_name="payslips")
 
-    employee = models.ForeignKey("core.Employee", on_delete=models.CASCADE)
+    employee_id = models.IntegerField()
     contract_id = models.IntegerField(null=True, blank=True)
 
     worked_days = models.DecimalField(max_digits=6, decimal_places=2, default=0)
