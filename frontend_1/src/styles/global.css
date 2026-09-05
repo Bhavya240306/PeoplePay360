@@ -1,0 +1,126 @@
+/* =========================================
+   PeoplePay360 - Global Styles
+   ========================================= */
+
+:root {
+    --font-primary: "Inter", Arial, sans-serif;
+    --font-heading: Georgia, "Times New Roman", serif;
+
+    --font-xs: 13px;
+    --font-sm: 14px;
+    --font-md: 16px;
+    --font-lg: 18px;
+    --font-xl: 24px;
+    --font-xxl: 34px;
+
+    --brand-title-size: 34px;
+}
+
+/* ---------- Global Reset ---------- */
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+    margin: 0;
+    min-height: 100%;
+    width: 100%;
+}
+
+/* ---------- Global Typography ---------- */
+
+body {
+    font-family: var(--font-primary);
+    font-size: var(--font-md);
+    line-height: 1.6;
+}
+
+/* ---------- Headings ---------- */
+
+h1 {
+    font-family: var(--font-heading);
+    font-size: var(--font-xxl);
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+h2 {
+    font-family: var(--font-heading);
+    font-size: 28px;
+    font-weight: 700;
+}
+
+h3 {
+    font-size: var(--font-xl);
+    font-weight: 600;
+}
+
+/* ---------- Main Brand ---------- */
+
+.brand-title {
+    font-family: var(--font-heading);
+    font-size: var(--brand-title-size);
+    font-weight: 700;
+    letter-spacing: -0.5px;
+}
+
+/* ---------- Navigation ---------- */
+
+.nav-link {
+    font-size: var(--font-md);
+}
+
+/* ---------- Buttons ---------- */
+
+button {
+    font-family: inherit;
+    font-size: var(--font-md);
+}
+
+/* ---------- Inputs ---------- */
+
+input,
+select,
+textarea {
+    font-family: inherit;
+    font-size: var(--font-md);
+}
+
+/* ---------- Tables ---------- */
+
+table {
+    font-size: var(--font-md);
+}
+
+th {
+    font-size: var(--font-sm);
+    font-weight: 600;
+}
+
+td {
+    font-size: var(--font-md);
+}
+
+/* ---------- Responsive Typography ---------- */
+
+@media (max-width: 768px) {
+
+    .brand-title {
+        font-size: 28px;
+    }
+
+    h1 {
+        font-size: 28px;
+    }
+
+    h2 {
+        font-size: 24px;
+    }
+
+    body {
+        font-size: 15px;
+    }
+}
