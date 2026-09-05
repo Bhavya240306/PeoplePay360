@@ -16,4 +16,5 @@ urlpatterns = [
     path("api/timeoff/", include("timeoff.urls")),
     path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/audit/", include("audit.urls")),
+    path("api/dashboard/", include("dashboard.urls")),
 ]
