@@ -14,7 +14,7 @@ class Employee(models.Model):
     job_title = models.CharField(max_length=100, blank=True)
 
     date_of_joining = models.DateField()
-
+    bank_account = models.CharField(max_length=30, blank=True)
     is_active = models.BooleanField(default=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
