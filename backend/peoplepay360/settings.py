@@ -28,6 +28,12 @@ INSTALLED_APPS = [
 
     'payroll',
     'core',
+    'timeoff',
+    'accounts',
+    'audit',
+    'dashboard',
+    'notifications',
+    'settlement',
 ]
 
 MIDDLEWARE = [
@@ -37,6 +43,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'audit.middleware.CurrentUserMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
