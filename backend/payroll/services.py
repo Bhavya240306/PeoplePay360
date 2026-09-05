@@ -100,11 +100,6 @@ def build_payroll_context(employee, period_start, period_end):
 
 
 def compute_payslip(employee, payrun):
-    """
-    Computes and saves line items for one employee's Payslip within a
-    Payrun. On failure (e.g. no contract), saves a warning instead of
-    raising — so one bad employee doesn't break the whole batch.
-    """
     payslip, _ = Payslip.objects.get_or_create(payrun=payrun, employee_id=employee.pk)
 
     try:
@@ -117,17 +112,17 @@ def compute_payslip(employee, payrun):
 
     line_items = compute_structure(payrun.salary_structure, base_context=context)
 
-    payslip.lines.all().delete()  # clear old lines if recomputing
+    payslip.lines.all().delete()
     for item in line_items:
         PayslipLine.objects.create(payslip=payslip, **item)
 
     payslip.contract_id = contract.pk
     payslip.worked_days = context["WORKED_DAYS"]
     payslip.status = "computed"
-    payslip.warnings = []
+    payslip.warnings = detect_warnings(employee, contract, context)   
     payslip.save()
-    return payslip
 
+    return payslip
 
 def compute_payrun(payrun):
     """Runs compute_payslip for every employee selected in the Payrun."""
@@ -142,3 +137,22 @@ def compute_payrun(payrun):
     payrun.status = "computed"
     payrun.save()
     return results
+
+def detect_warnings(employee, contract, context):
+    """
+    Checks for known payroll issues on this employee's payslip.
+    Returns a list of human-readable warning strings — empty list
+    means no issues found. Called from compute_payslip() below.
+    """
+    warnings = []
+
+    # Missing bank details — field name assumed as 'bank_account';
+    # update this if Person 1 names it differently.
+    bank_account = getattr(employee, "bank_account", None)
+    if not bank_account:
+        warnings.append("Missing bank details")
+
+    if context.get("WORKED_DAYS", 0) == 0:
+        warnings.append("Zero worked days recorded for this period")
+
+    return warnings
