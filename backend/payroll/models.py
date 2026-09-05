@@ -98,8 +98,7 @@ class Payslip(models.Model):
 
     payrun = models.ForeignKey(Payrun, on_delete=models.CASCADE, related_name="payslips")
 
-    # Same placeholder pattern as above — swap for a real FK once core is merged.
-    employee_id = models.IntegerField()
+    employee = models.ForeignKey("core.Employee", on_delete=models.CASCADE)
     contract_id = models.IntegerField(null=True, blank=True)
 
     worked_days = models.DecimalField(max_digits=6, decimal_places=2, default=0)
