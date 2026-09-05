@@ -17,4 +17,5 @@ urlpatterns = [
     path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/audit/", include("audit.urls")),
     path("api/dashboard/", include("dashboard.urls")),
+    path("api/notifications/", include("notifications.urls")),
 ]
