@@ -1,0 +1,130 @@
+from django.db import models
+from django.core.exceptions import ValidationError
+
+
+class SalaryRule(models.Model):
+    CATEGORY_CHOICES = [
+        ("basic", "Basic"),
+        ("allowance", "Allowance"),
+        ("gross", "Gross"),
+        ("deduction", "Deduction"),
+        ("net", "Net"),
+    ]
+    COMPUTATION_CHOICES = [
+        ("fixed", "Fixed"),
+        ("percentage", "Percentage"),
+        ("formula", "Formula"),
+    ]
+
+    code = models.CharField(max_length=30, unique=True)
+    name = models.CharField(max_length=100)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    sequence = models.PositiveIntegerField(default=10)
+    computation_type = models.CharField(max_length=20, choices=COMPUTATION_CHOICES)
+
+    amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    percentage = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    percentage_of_code = models.CharField(max_length=30, null=True, blank=True)
+    formula = models.CharField(max_length=255, null=True, blank=True)
+
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["sequence"]
+
+    def clean(self):
+        if self.computation_type == "fixed" and self.amount is None:
+            raise ValidationError("Fixed rules require an amount.")
+        if self.computation_type == "percentage" and (
+            self.percentage is None or not self.percentage_of_code
+        ):
+            raise ValidationError("Percentage rules require percentage + percentage_of_code.")
+        if self.computation_type == "formula" and not self.formula:
+            raise ValidationError("Formula rules require a formula string.")
+
+    def __str__(self):
+        return f"{self.code} ({self.get_computation_type_display()})"
+
+
+class SalaryStructure(models.Model):
+    name = models.CharField(max_length=100)
+    active = models.BooleanField(default=True)
+    rules = models.ManyToManyField(SalaryRule, related_name="structures", blank=True)
+    pay_frequency = models.CharField(
+        max_length=20,
+        choices=[("monthly", "Monthly"), ("biweekly", "Biweekly")],
+        default="monthly",
+    )
+
+    def ordered_rules(self):
+        return self.rules.order_by("sequence")
+
+    def __str__(self):
+        return self.name
+
+class Payrun(models.Model):
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("computed", "Computed"),
+        ("validated", "Validated"),
+        ("paid", "Paid"),
+    ]
+
+    name = models.CharField(max_length=100, blank=True)  # e.g. auto-set to "February 2026"
+    salary_structure = models.ForeignKey(SalaryStructure, on_delete=models.PROTECT, related_name="payruns")
+    period_start = models.DateField()
+    period_end = models.DateField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft")
+
+    # Step 2 of the wizard populates this — the actual selected employees.
+    # We reference by ID (int) rather than a FK to Person 1's Employee model
+    # yet, since that app may not be merged into your branch. Swap this for
+    # a real ManyToManyField("core.Employee", ...) once core is available.
+    employee_ids = models.JSONField(default=list, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name or f"Payrun {self.period_start} – {self.period_end}"
+
+
+class Payslip(models.Model):
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("computed", "Computed"),
+        ("validated", "Validated"),
+        ("paid", "Paid"),
+    ]
+
+    payrun = models.ForeignKey(Payrun, on_delete=models.CASCADE, related_name="payslips")
+
+    # Same placeholder pattern as above — swap for a real FK once core is merged.
+    employee_id = models.IntegerField()
+    contract_id = models.IntegerField(null=True, blank=True)
+
+    worked_days = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft")
+    warnings = models.JSONField(default=list, blank=True)  # e.g. ["Missing bank details"]
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("payrun", "employee_id")  # DB-level guard against duplicate payslips
+
+    def __str__(self):
+        return f"Payslip #{self.id} — Employee {self.employee_id}"
+
+
+class PayslipLine(models.Model):
+    payslip = models.ForeignKey(Payslip, on_delete=models.CASCADE, related_name="lines")
+    rule_code = models.CharField(max_length=30)
+    rule_name = models.CharField(max_length=100)
+    category = models.CharField(max_length=20)
+    sequence = models.PositiveIntegerField()
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+
+    class Meta:
+        ordering = ["sequence"]
+
+    def __str__(self):
+        return f"{self.rule_code}: {self.amount}"
