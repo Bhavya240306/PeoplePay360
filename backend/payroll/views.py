@@ -1,9 +1,10 @@
+from django.http import HttpResponse
 from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import SalaryRule, SalaryStructure, Payrun, Payslip
 from .serializers import SalaryRuleSerializer, SalaryStructureSerializer, PayrunSerializer, PayslipSerializer
-from .services import compute_payrun
+from .services import compute_payrun, render_payslip_pdf, send_payrun_payslips
 
 
 class SalaryRuleViewSet(viewsets.ModelViewSet):
@@ -54,8 +55,31 @@ class PayrunViewSet(viewsets.ModelViewSet):
         compute_payrun(payrun)
         return Response(PayrunSerializer(payrun).data)
 
+    @action(detail=True, methods=["post"])
+    def send_payslips(self, request, pk=None):
+        """
+        POST /api/payroll/payruns/{id}/send_payslips/
+        Emails every computed payslip in this payrun as a PDF attachment.
+        """
+        payrun = self.get_object()
+        sent_count = send_payrun_payslips(payrun)
+        return Response({"sent": sent_count})
+
 
 class PayslipViewSet(viewsets.ModelViewSet):
     queryset = Payslip.objects.all()
     serializer_class = PayslipSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    @action(detail=True, methods=["get"])
+    def pdf(self, request, pk=None):
+        """
+        GET /api/payroll/payslips/{id}/pdf/
+        Returns a downloadable PDF of this single payslip.
+        """
+        payslip = self.get_object()
+        pdf_bytes = render_payslip_pdf(payslip)
+
+        response = HttpResponse(pdf_bytes, content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="payslip_{payslip.id}.pdf"'
+        return response

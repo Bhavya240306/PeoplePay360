@@ -2,6 +2,10 @@ from simpleeval import simple_eval
 from django.db.models import Q
 from core.models import Contract, Attendance, Employee
 from .models import Payslip, PayslipLine
+from django.template.loader import render_to_string
+
+from django.core.mail import EmailMessage
+from core.models import Employee
 
 def evaluate_rule(rule, context):
     """
@@ -156,3 +160,44 @@ def detect_warnings(employee, contract, context):
         warnings.append("Zero worked days recorded for this period")
 
     return warnings
+
+def render_payslip_pdf(payslip):
+    from xhtml2pdf import pisa
+    from io import BytesIO
+
+    html_string = render_to_string("payroll/payslip.html", {
+        "payslip": payslip,
+        "payrun": payslip.payrun,
+        "lines": payslip.lines.all(),
+    })
+
+    buffer = BytesIO()
+    pisa.CreatePDF(html_string, dest=buffer)
+    return buffer.getvalue()
+
+def send_payrun_payslips(payrun):
+    """
+    Emails every computed Payslip in this Payrun as a PDF attachment.
+    Returns the count of emails sent.
+    """
+    sent_count = 0
+    for payslip in payrun.payslips.filter(status="computed"):
+        pdf_bytes = render_payslip_pdf(payslip)
+
+        try:
+            employee = Employee.objects.get(pk=payslip.employee_id)
+            recipient = employee.email
+        except Employee.DoesNotExist:
+            recipient = f"employee{payslip.employee_id}@example.com"
+
+        email = EmailMessage(
+            subject=f"Payslip — {payrun.name}",
+            body="Please find your payslip attached.",
+            to=[recipient],
+        )
+        email.attach(f"payslip_{payslip.id}.pdf", pdf_bytes, "application/pdf")
+        email.send()
+        sent_count += 1
+
+    return sent_count
+
