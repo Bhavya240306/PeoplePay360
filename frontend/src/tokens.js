@@ -1,98 +1,110 @@
+// Ledger design system — built around what this product actually is:
+// a payroll/HR record book. Rows are sequential entries, numbers get
+// tabular monospace treatment, status is a stamp, not a pill.
+
 export const tokens = {
-  bg: "#F5F6F2",
-  surface: "#FFFFFF",
-  border: "#DDE1DA",
-  ink: "#1B2B22",
-  inkMuted: "#5B6B5F",
-  primary: "#2F6F4F",
-  primaryTint: "#E6EFE7",
-  amber: "#B8862C",
-  amberTint: "#F8EEDC",
-  red: "#A23B3B",
-  redTint: "#F7E7E5",
-  blue: "#3A6EA5",
-  blueTint: "#E6EEF5",
-  // Added: the reference had no neutral tone, needed for "Draft" status
-  // badges which shouldn't read as positive, warning, or negative.
-  gray: "#6B6F66",
-  grayTint: "#ECEDE9",
+  paper: "#EFEEE6",
+  surface: "#F8F7F2",
+  rule: "#D8D6CC",
+  ruleStrong: "#B9B6A8",
+  ink: "#1A2420",
+  inkMuted: "#5F6B63",
+  forest: "#2C5F44",
+  forestTint: "#E3EBE4",
+  oxblood: "#8B3A2B",
+  oxbloodTint: "#F3E5E1",
+  amber: "#95672A",
+  amberTint: "#F2E9D8",
+  slate: "#3E5266",
+  slateTint: "#E5EAEE",
 };
 
-export const fontStack =
-  "-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif";
+export const serifDisplay = "'Fraunces', 'Iowan Old Style', Georgia, serif";
+export const mono = "'IBM Plex Mono', 'SFMono-Regular', Menlo, monospace";
+export const sans = "'IBM Plex Sans', -apple-system, 'Segoe UI', sans-serif";
 
-export const badgeStyle = (bg, color) => ({
+// A stamp reads as an official mark: bordered, no fill, rather than a
+// solid color pill.
+export const stampStyle = (color) => ({
   display: "inline-block",
-  fontSize: 12,
-  fontWeight: 500,
-  padding: "3px 9px",
-  borderRadius: 5,
-  background: bg,
+  fontFamily: mono,
+  fontSize: 11,
+  letterSpacing: "0.02em",
+  padding: "2px 8px",
+  border: `1px solid ${color}`,
+  borderRadius: 3,
   color,
+  background: "transparent",
 });
 
 export const panelStyle = {
   background: tokens.surface,
-  border: `1px solid ${tokens.border}`,
-  borderRadius: 8,
-  padding: "16px 18px",
+  border: `1px solid ${tokens.rule}`,
+  borderRadius: 3,
+  padding: "18px 20px",
 };
 
 export const buttonPrimary = {
-  background: tokens.primary,
-  color: "#fff",
-  border: "none",
-  borderRadius: 6,
-  padding: "8px 14px",
+  background: tokens.forest,
+  color: tokens.surface,
+  border: `1px solid ${tokens.forest}`,
+  borderRadius: 3,
+  padding: "8px 16px",
   fontSize: 13,
+  fontFamily: sans,
   fontWeight: 500,
   cursor: "pointer",
 };
 
 export const buttonSecondary = {
-  background: tokens.surface,
+  background: "transparent",
   color: tokens.ink,
-  border: `1px solid ${tokens.border}`,
-  borderRadius: 6,
-  padding: "8px 14px",
+  border: `1px solid ${tokens.ruleStrong}`,
+  borderRadius: 3,
+  padding: "8px 16px",
   fontSize: 13,
+  fontFamily: sans,
   fontWeight: 500,
   cursor: "pointer",
 };
 
+export const buttonSmall = {
+  ...buttonSecondary,
+  padding: "4px 10px",
+  fontSize: 12,
+};
+
 export const inputStyle = {
-  border: `1px solid ${tokens.border}`,
-  borderRadius: 6,
-  padding: "7px 10px",
+  display: "block",
+  width: "100%",
+  marginTop: 4,
+  padding: "7px 9px",
+  borderRadius: 3,
+  border: `1px solid ${tokens.rule}`,
   fontSize: 13,
   color: tokens.ink,
-  background: tokens.surface,
-  width: "100%",
   boxSizing: "border-box",
+  fontFamily: sans,
+  background: tokens.surface,
 };
 
 export const labelStyle = {
-  fontSize: 12,
-  fontWeight: 500,
+  fontSize: 11.5,
   color: tokens.inkMuted,
-  marginBottom: 4,
+  fontFamily: sans,
   display: "block",
 };
 
-// Single source of truth for every status badge across every screen —
-// Payrun status, Payslip status, and (later) Contract/TimeOff status all
-// resolve through this one map, so "Draft" looks identical everywhere.
-export const STATUS_BADGE = {
-  draft: badgeStyle(tokens.grayTint, tokens.gray),
-  computed: badgeStyle(tokens.blueTint, tokens.blue),
-  validated: badgeStyle(tokens.amberTint, tokens.amber),
-  paid: badgeStyle(tokens.primaryTint, tokens.primary),
-  approved: badgeStyle(tokens.primaryTint, tokens.primary),
-  submitted: badgeStyle(tokens.blueTint, tokens.blue),
-  refused: badgeStyle(tokens.redTint, tokens.red),
-  active: badgeStyle(tokens.primaryTint, tokens.primary),
+export const numeral = { fontFamily: mono, fontVariantNumeric: "tabular-nums" };
+
+export const overlayStyle = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(26,36,32,0.4)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 50,
 };
 
-export function statusBadgeProps(status) {
-  return STATUS_BADGE[status] || badgeStyle(tokens.grayTint, tokens.gray);
-}
+export const overlayRightStyle = { ...overlayStyle, justifyContent: "flex-end" };

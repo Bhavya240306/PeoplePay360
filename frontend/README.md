@@ -1,70 +1,80 @@
-# Getting Started with Create React App
+# PeoplePay360 — Full Frontend (Ledger design)
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Complete frontend, every module, wired to your real Django backend —
+no hardcoded/sample data, no simulated login. Built on the "ledger"
+design system: HR/payroll records treated as sequential entries in a
+register (numbered rows, hairline dividers, stamp-style status badges,
+monospace figures), not generic dashboard cards.
 
-## Available Scripts
+## Design
+- Headings: **Fraunces** (serif) · Numbers: **IBM Plex Mono** · Body: **IBM Plex Sans**
+- Palette: paper `#EFEEE6`, ink `#1A2420`, forest `#2C5F44` (positive/active),
+  oxblood `#8B3A2B` (warnings/negative), amber `#95672A` (pending/draft),
+  slate `#3E5266` (neutral tags)
+- Everything lives in `src/tokens.js` — plain JS style objects, no
+  Tailwind, no CSS files, no component library, matching the original
+  reference's stated approach.
+- `src/components/StatusBadge.jsx` is the single source of truth for
+  every status color across every module.
 
-In the project directory, you can run:
+## Stack
+Vite + React + `react-router-dom`. Real JWT auth against your Django
+`SimpleJWT` endpoint — not the placeholder role-picker from earlier
+drafts.
 
-### `npm start`
+## Run it
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+```bash
+npm install
+npm run dev
+```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+Make sure your Django backend is running first:
+```bash
+cd ../backend
+python manage.py runserver
+```
 
-### `npm test`
+`.env` already points at `http://localhost:8000/api` — change
+`VITE_API_BASE_URL` if your backend runs elsewhere.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Log in with your real Django superuser (or any account created via
+User Management).
 
-### `npm run build`
+## What's included — every module, wired to a real, tested endpoint
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+| Module | Screens | Backend app |
+|---|---|---|
+| Employees | List, detail (Info/Contracts/Attendance/Time off tabs, History) | `core` |
+| Contracts | List + create (real overlap-validation error surfaced) | `core` |
+| Attendance | List (filterable by employee) + log entry | `core` |
+| Working Schedules | Per-employee weekly grid, computed total hours | `core` |
+| Time Off | Types, Allocations, Requests (real approve/refuse) | `timeoff` |
+| Payroll Dashboard | Live KPIs, cost-by-department & monthly trend bars, alerts | `dashboard` |
+| Payruns | List + real 2-step wizard, Compute, PDF download, Send payslips | `payroll` |
+| Salary Structures / Rules | List + create | `payroll` |
+| User Management | List + create user with role | `accounts` |
+| Settlements | Auto-generated settlement records | `settlement` |
+| Notifications | Bell in header, real unread count, mark-read | `notifications` |
+| Audit history | Reusable `AuditTab` — dropped into Employee and Payrun detail | `audit` |
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Notes on a few real-world mismatches, handled deliberately
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+- **Working Schedule** here is per-employee, per-day-of-week — matching
+  your actual `core.Schedule` model. (An earlier draft assumed shared
+  named "templates" like "Standard 40h" — that's not what the backend
+  stores, so this version reflects the real schema instead.)
+- **Employee status** is a simple Active/Inactive boolean on the
+  backend, not a staged Onboarding/Active/Offboarding pipeline — the
+  badge reflects that; extending to a staged status is a backend
+  model change if you want the fuller mockup-style Kanban later.
+- **`AuditTab`** only shows history for models actually wired into the
+  backend's `audit/signals.py` (`SalaryRule`, `SalaryStructure`,
+  `Payrun`, `Payslip`, `Contract`). It'll show "No recorded changes"
+  for `Employee` until that model is added to the tracked list.
 
-### `npm run eject`
+## Extending
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Add a new screen by: writing the screen in `src/screens/`, adding its
+API calls to the relevant `src/api/*.js` file if not already there,
+and adding a route in `App.jsx` + a nav link in `Layout.jsx`.

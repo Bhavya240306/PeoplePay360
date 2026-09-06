@@ -1,4 +1,5 @@
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets
+from accounts.permissions import IsHRPayrollManagerOrAbove
 from .models import Settlement
 from .serializers import SettlementSerializer
 
@@ -6,4 +7,4 @@ from .serializers import SettlementSerializer
 class SettlementViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Settlement.objects.all()
     serializer_class = SettlementSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsHRPayrollManagerOrAbove]

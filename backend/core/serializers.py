@@ -5,7 +5,14 @@ from .models import Employee, Contract, Attendance, Schedule
 class EmployeeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Employee
-        fields = "__all__"
+        # qr_token is a private "badge" secret - deliberately excluded from
+        # every response. It's only ever used server-side (qr_scan) or
+        # rendered into a QR image (my_qr_code), never serialized as JSON.
+        fields = [
+            "id", "employee_id", "first_name", "last_name", "email", "phone",
+            "department", "job_title", "date_of_joining", "bank_account",
+            "is_active", "created_at", "updated_at",
+        ]
 
 
 class ContractSerializer(serializers.ModelSerializer):

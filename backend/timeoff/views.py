@@ -2,6 +2,7 @@ from rest_framework import viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.core.exceptions import ValidationError
+from accounts.permissions import IsHRManagerOrAbove
 from .models import TimeOffType, Allocation, TimeOffRequest
 from .serializers import TimeOffTypeSerializer, AllocationSerializer, TimeOffRequestSerializer
 from .services import approve_request, refuse_request
@@ -10,13 +11,13 @@ from .services import approve_request, refuse_request
 class TimeOffTypeViewSet(viewsets.ModelViewSet):
     queryset = TimeOffType.objects.all()
     serializer_class = TimeOffTypeSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsHRManagerOrAbove]
 
 
 class AllocationViewSet(viewsets.ModelViewSet):
     queryset = Allocation.objects.all()
     serializer_class = AllocationSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsHRManagerOrAbove]
 
 
 class TimeOffRequestViewSet(viewsets.ModelViewSet):

@@ -1,7 +1,10 @@
+import calendar
+
 from simpleeval import simple_eval
 from django.db.models import Q
+from django.utils import timezone
 from core.models import Contract, Attendance, Employee
-from .models import Payslip, PayslipLine
+from .models import Payslip, PayslipLine, Payrun, SalaryStructure
 from django.template.loader import render_to_string
 
 from django.core.mail import EmailMessage
@@ -42,7 +45,13 @@ def compute_structure(structure, base_context):
     line_items = []
 
     for rule in structure.ordered_rules():
-        value = evaluate_rule(rule, context)
+        if rule.code in base_context:
+            # A value seeded from outside (e.g. BASIC from the employee's
+            # contract) is authoritative — don't let the rule's own static
+            # definition (e.g. a "fixed" amount) silently overwrite it.
+            value = base_context[rule.code]
+        else:
+            value = evaluate_rule(rule, context)
         context[rule.code] = value  # make this rule's result available to later rules
         line_items.append({
             "rule_code": rule.code,
@@ -165,15 +174,46 @@ def render_payslip_pdf(payslip):
     from xhtml2pdf import pisa
     from io import BytesIO
 
+    employee = Employee.objects.filter(pk=payslip.employee_id).first()
+
     html_string = render_to_string("payroll/payslip.html", {
         "payslip": payslip,
         "payrun": payslip.payrun,
+        "employee": employee,
         "lines": payslip.lines.all(),
     })
 
     buffer = BytesIO()
     pisa.CreatePDF(html_string, dest=buffer)
     return buffer.getvalue()
+
+
+def send_payslip_email(payslip):
+    """
+    Emails a single computed Payslip as a PDF attachment, and stamps
+    sent_at so the UI (and the employee's own payslip list) can show it
+    was delivered. Returns True if an email was sent.
+    """
+    if payslip.status != "computed":
+        return False
+
+    pdf_bytes = render_payslip_pdf(payslip)
+
+    employee = Employee.objects.filter(pk=payslip.employee_id).first()
+    recipient = employee.email if employee else f"employee{payslip.employee_id}@example.com"
+
+    email = EmailMessage(
+        subject=f"Payslip — {payslip.payrun.name}",
+        body="Please find your payslip attached.",
+        to=[recipient],
+    )
+    email.attach(f"payslip_{payslip.id}.pdf", pdf_bytes, "application/pdf")
+    email.send()
+
+    payslip.sent_at = timezone.now()
+    payslip.save(update_fields=["sent_at"])
+    return True
+
 
 def send_payrun_payslips(payrun):
     """
@@ -182,22 +222,68 @@ def send_payrun_payslips(payrun):
     """
     sent_count = 0
     for payslip in payrun.payslips.filter(status="computed"):
-        pdf_bytes = render_payslip_pdf(payslip)
-
-        try:
-            employee = Employee.objects.get(pk=payslip.employee_id)
-            recipient = employee.email
-        except Employee.DoesNotExist:
-            recipient = f"employee{payslip.employee_id}@example.com"
-
-        email = EmailMessage(
-            subject=f"Payslip — {payrun.name}",
-            body="Please find your payslip attached.",
-            to=[recipient],
-        )
-        email.attach(f"payslip_{payslip.id}.pdf", pdf_bytes, "application/pdf")
-        email.send()
-        sent_count += 1
-
+        if send_payslip_email(payslip):
+            sent_count += 1
     return sent_count
+
+
+def _month_bounds(reference_date=None):
+    ref = reference_date or timezone.localdate()
+    start = ref.replace(day=1)
+    last_day = calendar.monthrange(ref.year, ref.month)[1]
+    end = ref.replace(day=last_day)
+    return start, end
+
+
+def generate_monthly_payruns(reference_date=None):
+    """
+    Idempotently ensures every active employee with an applicable contract
+    has a computed payslip for the current calendar month. Employees whose
+    contract ends mid-month get their own payrun capped at the contract's
+    end_date (so worked-days/proration stays correct), instead of being
+    lumped into the shared full-month payrun.
+    """
+    structure = SalaryStructure.objects.filter(active=True).first()
+    if structure is None:
+        return []
+
+    period_start, period_end = _month_bounds(reference_date)
+    payruns = []
+    regular_employee_ids = []
+
+    for employee in Employee.objects.filter(is_active=True):
+        contract = get_applicable_contract(employee, period_start, period_end)
+        if contract is None:
+            continue
+
+        if contract.end_date and period_start <= contract.end_date < period_end:
+            payrun, _ = Payrun.objects.get_or_create(
+                name=f"{employee} — Final ({contract.end_date})",
+                period_start=period_start,
+                period_end=contract.end_date,
+                defaults={"salary_structure": structure, "employee_ids": [employee.pk]},
+            )
+            if employee.pk not in payrun.employee_ids:
+                payrun.employee_ids = list(set(payrun.employee_ids) | {employee.pk})
+                payrun.save()
+            compute_payrun(payrun)
+            payruns.append(payrun)
+        else:
+            regular_employee_ids.append(employee.pk)
+
+    if regular_employee_ids:
+        payrun, _ = Payrun.objects.get_or_create(
+            name=period_start.strftime("%B %Y"),
+            period_start=period_start,
+            period_end=period_end,
+            defaults={"salary_structure": structure, "employee_ids": regular_employee_ids},
+        )
+        merged = set(payrun.employee_ids) | set(regular_employee_ids)
+        if merged != set(payrun.employee_ids):
+            payrun.employee_ids = list(merged)
+            payrun.save()
+        compute_payrun(payrun)
+        payruns.append(payrun)
+
+    return payruns
 

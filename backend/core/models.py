@@ -1,3 +1,5 @@
+import secrets
+
 from django.db import models
 
 
@@ -17,8 +19,18 @@ class Employee(models.Model):
     bank_account = models.CharField(max_length=30, blank=True)
     is_active = models.BooleanField(default=True)
 
+    # A private, per-employee secret encoded into their personal attendance
+    # QR code (see AttendanceViewSet.my_qr_code / qr_scan). Never exposed
+    # through EmployeeSerializer - only usable to identify who scanned.
+    qr_token = models.CharField(max_length=64, unique=True, blank=True, editable=False)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.qr_token:
+            self.qr_token = secrets.token_urlsafe(24)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.employee_id} - {self.first_name} {self.last_name}"

@@ -1,6 +1,6 @@
 import { api, setTokens, clearTokens, getAccessToken } from "./client";
 
-const BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:8000/api";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
 export async function login(username, password) {
   const res = await fetch(`${BASE_URL}/token/`, {
@@ -8,9 +8,7 @@ export async function login(username, password) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
   });
-  if (!res.ok) {
-    throw new Error("Incorrect username or password.");
-  }
+  if (!res.ok) throw new Error("Incorrect username or password.");
   const data = await res.json();
   setTokens({ access: data.access, refresh: data.refresh });
   return data;
@@ -24,7 +22,6 @@ export function isLoggedIn() {
   return !!getAccessToken();
 }
 
-// Matches GET /api/accounts/users/me/ from the accounts app.
 export function fetchCurrentUser() {
   return api.get("/accounts/users/me/");
 }

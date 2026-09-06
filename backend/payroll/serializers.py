@@ -34,12 +34,22 @@ class PayslipLineSerializer(serializers.ModelSerializer):
         fields = ["id", "rule_code", "rule_name", "category", "sequence", "amount"]
 
 
+class PayrunMiniSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payrun
+        fields = ["id", "name", "period_start", "period_end", "status"]
+
+
 class PayslipSerializer(serializers.ModelSerializer):
     lines = PayslipLineSerializer(many=True, read_only=True)
+    payrun_detail = PayrunMiniSerializer(source="payrun", read_only=True)
 
     class Meta:
         model = Payslip
-        fields = ["id", "payrun", "employee_id", "contract_id", "worked_days", "status", "warnings", "lines"]
+        fields = [
+            "id", "payrun", "payrun_detail", "employee_id", "contract_id",
+            "worked_days", "status", "warnings", "sent_at", "lines",
+        ]
 
 
 class PayrunSerializer(serializers.ModelSerializer):

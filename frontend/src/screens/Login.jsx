@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { tokens, fontStack, panelStyle, buttonPrimary, inputStyle, labelStyle } from "../tokens";
+import { tokens, serifDisplay, sans, mono, panelStyle, buttonPrimary, inputStyle, labelStyle } from "../tokens";
 import { useAuth } from "../AuthContext";
 
 export default function Login() {
@@ -17,7 +17,7 @@ export default function Login() {
     setSubmitting(true);
     try {
       await login(username, password);
-      navigate("/payroll/payruns");
+      navigate("/employees");
     } catch (err) {
       setError(err.message || "Login failed.");
     } finally {
@@ -26,46 +26,26 @@ export default function Login() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: tokens.bg,
-        fontFamily: fontStack,
-      }}
-    >
-      <form onSubmit={handleSubmit} style={{ ...panelStyle, width: 340 }}>
-        <h1 style={{ fontSize: 18, fontWeight: 600, color: tokens.ink, margin: "0 0 4px" }}>
+    <div style={{ minHeight: "100vh", background: tokens.paper, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: sans }}>
+      <form onSubmit={handleSubmit} style={{ ...panelStyle, width: 360 }}>
+        <h1 style={{ fontFamily: serifDisplay, fontSize: 22, fontWeight: 600, color: tokens.ink, margin: "0 0 4px" }}>
           PeoplePay360
         </h1>
-        <p style={{ fontSize: 13, color: tokens.inkMuted, margin: "0 0 20px" }}>
-          Sign in to continue.
+        <p style={{ fontFamily: mono, fontSize: 11, color: tokens.inkMuted, margin: "0 0 20px" }}>
+          HR Register — sign in to continue
         </p>
 
         <label style={labelStyle}>Username</label>
-        <input
-          style={{ ...inputStyle, marginBottom: 14 }}
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          autoFocus
-        />
+        <input style={inputStyle} value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
 
+        <div style={{ height: 12 }} />
         <label style={labelStyle}>Password</label>
-        <input
-          type="password"
-          style={{ ...inputStyle, marginBottom: 16 }}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <input type="password" style={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} />
 
-        {error && (
-          <div style={{ color: tokens.red, fontSize: 12, marginBottom: 12 }}>{error}</div>
-        )}
+        {error && <div style={{ color: tokens.oxblood, fontSize: 12, marginTop: 12 }}>{error}</div>}
 
-        <button type="submit" style={{ ...buttonPrimary, width: "100%" }} disabled={submitting}>
-          {submitting ? "Signing in..." : "Sign in"}
+        <button type="submit" style={{ ...buttonPrimary, width: "100%", marginTop: 18 }} disabled={submitting}>
+          {submitting ? "Signing in…" : "Sign in"}
         </button>
       </form>
     </div>
