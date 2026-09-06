@@ -7,6 +7,9 @@ class SalaryRuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = SalaryRule
         fields = "__all__"
+        # sequence is never client-supplied - it's auto-assigned from the
+        # rule's category priority band (see SalaryRuleViewSet.perform_create).
+        read_only_fields = ["sequence"]
 
     def validate(self, data):
         instance = SalaryRule(**data)

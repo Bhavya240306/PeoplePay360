@@ -35,11 +35,11 @@ export default function Login() {
           HR Register — sign in to continue
         </p>
 
-        <label style={labelStyle}>Username</label>
+        <label style={labelStyle}>Username<span style={{ color: tokens.oxblood, marginLeft: 3 }}>*</span></label>
         <input style={inputStyle} value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
 
         <div style={{ height: 12 }} />
-        <label style={labelStyle}>Password</label>
+        <label style={labelStyle}>Password<span style={{ color: tokens.oxblood, marginLeft: 3 }}>*</span></label>
         <input type="password" style={inputStyle} value={password} onChange={(e) => setPassword(e.target.value)} />
 
         {error && <div style={{ color: tokens.oxblood, fontSize: 12, marginTop: 12 }}>{error}</div>}

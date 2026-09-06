@@ -1,22 +1,37 @@
 import secrets
+from decimal import Decimal
 
+from django.core.validators import MinValueValidator, MaxValueValidator, RegexValidator
 from django.db import models
+
+employee_id_validator = RegexValidator(
+    r"^[A-Za-z0-9-]{3,20}$", "Use 3–20 letters, numbers, or hyphens only (e.g. EMP021)."
+)
+person_name_validator = RegexValidator(
+    r"^[A-Za-z][A-Za-z .'-]*$", "Letters only (spaces, hyphens, and apostrophes allowed)."
+)
+phone_validator = RegexValidator(
+    r"^\+?\d{7,15}$", "7–15 digits, optionally starting with + and a country code."
+)
+bank_account_validator = RegexValidator(
+    r"^\d{9,18}$", "9–18 digits, no spaces or dashes."
+)
 
 
 class Employee(models.Model):
-    employee_id = models.CharField(max_length=20, unique=True)
+    employee_id = models.CharField(max_length=20, unique=True, validators=[employee_id_validator])
 
-    first_name = models.CharField(max_length=50)
-    last_name = models.CharField(max_length=50, blank=True)
+    first_name = models.CharField(max_length=50, validators=[person_name_validator])
+    last_name = models.CharField(max_length=50, blank=True, validators=[person_name_validator])
 
     email = models.EmailField(unique=True)
-    phone = models.CharField(max_length=15, blank=True)
+    phone = models.CharField(max_length=15, blank=True, validators=[phone_validator])
 
     department = models.CharField(max_length=100, blank=True)
     job_title = models.CharField(max_length=100, blank=True)
 
     date_of_joining = models.DateField()
-    bank_account = models.CharField(max_length=30, blank=True)
+    bank_account = models.CharField(max_length=30, blank=True, validators=[bank_account_validator])
     is_active = models.BooleanField(default=True)
 
     # A private, per-employee secret encoded into their personal attendance
@@ -49,13 +64,15 @@ class Contract(models.Model):
 
     basic_salary = models.DecimalField(
         max_digits=12,
-        decimal_places=2
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("1"))],
     )
 
     working_hours_per_week = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=40
+        default=40,
+        validators=[MinValueValidator(Decimal("1")), MaxValueValidator(Decimal("80"))],
     )
 
     is_active = models.BooleanField(default=True)
@@ -91,7 +108,8 @@ class Attendance(models.Model):
     worked_hours = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=0
+        default=0,
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("24"))],
     )
 
     notes = models.TextField(blank=True)

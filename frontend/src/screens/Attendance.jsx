@@ -1,17 +1,30 @@
 import React, { useEffect, useState } from "react";
 import { tokens, mono, panelStyle, buttonPrimary, inputStyle, labelStyle, numeral, overlayStyle } from "../tokens";
 import StatusBadge from "../components/StatusBadge";
+import ViewToggle from "../components/ViewToggle";
+import Field, { fieldInputStyle } from "../components/Field";
 import { coreApi } from "../api/coreApi";
+import { validateRequired, validateWorkedHours, validateTimeRange, runValidators, hasErrors, HINTS } from "../validators";
 
 const emptyForm = { employee: "", date: "", check_in: "", check_out: "", status: "present", worked_hours: 0, notes: "" };
+
+const BOARD_COLUMNS = [
+  { status: "present", label: "Present" },
+  { status: "late", label: "Late" },
+  { status: "half_day", label: "Half day" },
+  { status: "absent", label: "Absent" },
+];
 
 export default function Attendance() {
   const [records, setRecords] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [filterEmployee, setFilterEmployee] = useState("");
   const [form, setForm] = useState(emptyForm);
+  const [errors, setErrors] = useState({});
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
+  const [view, setView] = useState("list");
+  const [boardDate, setBoardDate] = useState("");
 
   useEffect(() => { load(); }, [filterEmployee]);
   function load() {
@@ -24,18 +37,45 @@ export default function Attendance() {
     return e ? `${e.first_name} ${e.last_name}` : `#${id}`;
   }
 
+  function handleChange(key, value) {
+    setForm({ ...form, [key]: value });
+    if (errors[key]) setErrors({ ...errors, [key]: "" });
+  }
+
+  function validateAll() {
+    const fieldErrors = runValidators(form, {
+      employee: validateRequired,
+      date: validateRequired,
+      worked_hours: validateWorkedHours,
+    });
+    const timeError = validateTimeRange(form.check_in, form.check_out);
+    if (timeError) fieldErrors.check_out = timeError;
+    return fieldErrors;
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    const fieldErrors = validateAll();
+    setErrors(fieldErrors);
+    if (hasErrors(fieldErrors)) return;
     try {
       await coreApi.createAttendance({ ...form, employee: Number(form.employee) });
       setForm(emptyForm);
+      setErrors({});
       setShowForm(false);
       load();
     } catch (err) {
       setError(err.message);
     }
   }
+
+  // The log accumulates one row per employee per day indefinitely, so
+  // the board (which buckets by status, not date) needs to be scoped
+  // to a single day - otherwise a column stacks every day ever logged.
+  const latestDate = records.reduce((max, a) => (a.date > max ? a.date : max), "");
+  const effectiveBoardDate = boardDate || latestDate;
+  const boardRecords = records.filter((a) => a.date === effectiveBoardDate);
 
   return (
     <div style={{ padding: "24px 28px", maxWidth: 950 }}>
@@ -51,31 +91,67 @@ export default function Attendance() {
             <option value="">All employees</option>
             {employees.map((emp) => <option key={emp.id} value={emp.id}>{emp.first_name} {emp.last_name}</option>)}
           </select>
+          <ViewToggle view={view} onChange={setView} />
           <button style={buttonPrimary} onClick={() => setShowForm(true)}>+ Log entry</button>
         </div>
       </div>
 
-      <div>
-        <div style={{ display: "flex", fontFamily: mono, fontSize: 10.5, color: tokens.inkMuted, borderBottom: `1px solid ${tokens.ruleStrong}`, paddingBottom: 6 }}>
-          <div style={{ width: 40 }}>№</div>
-          <div style={{ flex: 1.6 }}>Employee</div>
-          <div style={{ flex: 1 }}>Date</div>
-          <div style={{ flex: 1 }}>In</div>
-          <div style={{ flex: 1 }}>Out</div>
-          <div style={{ width: 120 }}>Status</div>
-        </div>
-        {records.map((a, i) => (
-          <div key={a.id} style={{ display: "flex", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${tokens.rule}`, fontSize: 13.5 }}>
-            <div style={{ width: 40, ...numeral, color: tokens.inkMuted, fontSize: 12 }}>{String(i + 1).padStart(2, "0")}</div>
-            <div style={{ flex: 1.6 }}>{employeeName(a.employee)}</div>
-            <div style={{ flex: 1, ...numeral, fontSize: 12.5 }}>{a.date}</div>
-            <div style={{ flex: 1, ...numeral, fontSize: 12.5 }}>{a.check_in || "—"}</div>
-            <div style={{ flex: 1, ...numeral, fontSize: 12.5 }}>{a.check_out || "—"}</div>
-            <div style={{ width: 120 }}><StatusBadge status={a.status} /></div>
+      {view === "board" ? (
+        <div>
+          <div style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+            <label style={{ ...labelStyle, marginBottom: 0 }}>Day</label>
+            <input
+              type="date" style={{ ...inputStyle, width: 160, marginTop: 0 }}
+              value={effectiveBoardDate} onChange={(e) => setBoardDate(e.target.value)}
+            />
           </div>
-        ))}
-        {records.length === 0 && <p style={{ color: tokens.inkMuted, fontSize: 13, padding: "16px 0" }}>No attendance recorded.</p>}
-      </div>
+          <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+          {BOARD_COLUMNS.map((col) => {
+            const items = boardRecords.filter((a) => a.status === col.status);
+            return (
+              <div key={col.status} style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: mono, fontSize: 10.5, color: tokens.inkMuted, marginBottom: 8, display: "flex", justifyContent: "space-between" }}>
+                  <span>{col.label}</span>
+                  <span>{items.length}</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {items.map((a) => (
+                    <div key={a.id} style={{ ...panelStyle, padding: "10px 12px" }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{employeeName(a.employee)}</div>
+                      <div style={{ ...numeral, fontSize: 12, color: tokens.inkMuted, marginBottom: 8 }}>{a.date}</div>
+                      <div style={{ ...numeral, fontSize: 12 }}>{a.check_in || "—"} → {a.check_out || "—"}</div>
+                    </div>
+                  ))}
+                  {items.length === 0 && <p style={{ color: tokens.inkMuted, fontSize: 12 }}>—</p>}
+                </div>
+              </div>
+            );
+          })}
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div style={{ display: "flex", fontFamily: mono, fontSize: 10.5, color: tokens.inkMuted, borderBottom: `1px solid ${tokens.ruleStrong}`, paddingBottom: 6 }}>
+            <div style={{ width: 40 }}>№</div>
+            <div style={{ flex: 1.6 }}>Employee</div>
+            <div style={{ flex: 1 }}>Date</div>
+            <div style={{ flex: 1 }}>In</div>
+            <div style={{ flex: 1 }}>Out</div>
+            <div style={{ width: 120 }}>Status</div>
+          </div>
+          {records.map((a, i) => (
+            <div key={a.id} style={{ display: "flex", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${tokens.rule}`, fontSize: 13.5 }}>
+              <div style={{ width: 40, ...numeral, color: tokens.inkMuted, fontSize: 12 }}>{String(i + 1).padStart(2, "0")}</div>
+              <div style={{ flex: 1.6 }}>{employeeName(a.employee)}</div>
+              <div style={{ flex: 1, ...numeral, fontSize: 12.5 }}>{a.date}</div>
+              <div style={{ flex: 1, ...numeral, fontSize: 12.5 }}>{a.check_in || "—"}</div>
+              <div style={{ flex: 1, ...numeral, fontSize: 12.5 }}>{a.check_out || "—"}</div>
+              <div style={{ width: 120 }}><StatusBadge status={a.status} /></div>
+            </div>
+          ))}
+          {records.length === 0 && <p style={{ color: tokens.inkMuted, fontSize: 13, padding: "16px 0" }}>No attendance recorded.</p>}
+        </div>
+      )}
 
       {showForm && (
         <div style={overlayStyle}>
@@ -84,35 +160,33 @@ export default function Attendance() {
               <h3 style={{ margin: 0, fontSize: 15 }}>Log attendance</h3>
               <button type="button" onClick={() => setShowForm(false)} style={{ border: "none", background: "none", cursor: "pointer", color: tokens.inkMuted }}>✕</button>
             </div>
-            <div style={{ marginBottom: 10 }}>
-              <label style={labelStyle}>Employee</label>
-              <select style={inputStyle} value={form.employee} onChange={(e) => setForm({ ...form, employee: e.target.value })} required>
+            <Field label="Employee" required error={errors.employee} style={{ marginBottom: 12 }}>
+              <select style={fieldInputStyle(!!errors.employee)} value={form.employee} onChange={(e) => handleChange("employee", e.target.value)}>
                 <option value="">Select…</option>
                 {employees.map((e) => <option key={e.id} value={e.id}>{e.first_name} {e.last_name}</option>)}
               </select>
-            </div>
+            </Field>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 10 }}>
-              <div>
-                <label style={labelStyle}>Date</label>
-                <input type="date" style={inputStyle} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
-              </div>
-              <div>
-                <label style={labelStyle}>Status</label>
-                <select style={inputStyle} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+              <Field label="Date" required error={errors.date}>
+                <input type="date" style={fieldInputStyle(!!errors.date)} value={form.date} onChange={(e) => handleChange("date", e.target.value)} />
+              </Field>
+              <Field label="Status">
+                <select style={inputStyle} value={form.status} onChange={(e) => handleChange("status", e.target.value)}>
                   <option value="present">Present</option>
                   <option value="absent">Absent</option>
                   <option value="late">Late</option>
                   <option value="half_day">Half day</option>
                 </select>
-              </div>
-              <div>
-                <label style={labelStyle}>Check in</label>
-                <input type="time" style={inputStyle} value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value })} />
-              </div>
-              <div>
-                <label style={labelStyle}>Check out</label>
-                <input type="time" style={inputStyle} value={form.check_out} onChange={(e) => setForm({ ...form, check_out: e.target.value })} />
-              </div>
+              </Field>
+              <Field label="Check in">
+                <input type="time" style={inputStyle} value={form.check_in} onChange={(e) => handleChange("check_in", e.target.value)} />
+              </Field>
+              <Field label="Check out" hint={HINTS.timeRange} error={errors.check_out}>
+                <input type="time" style={fieldInputStyle(!!errors.check_out)} value={form.check_out} onChange={(e) => handleChange("check_out", e.target.value)} />
+              </Field>
+              <Field label="Worked hours" hint={HINTS.workedHours} error={errors.worked_hours} style={{ gridColumn: "span 2" }}>
+                <input type="number" min="0" max="24" step="0.25" style={fieldInputStyle(!!errors.worked_hours)} value={form.worked_hours} onChange={(e) => handleChange("worked_hours", e.target.value)} />
+              </Field>
             </div>
             {error && <div style={{ color: tokens.oxblood, fontSize: 12, marginBottom: 10 }}>{error}</div>}
             <button type="submit" style={buttonPrimary}>Record entry</button>

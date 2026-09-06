@@ -55,7 +55,7 @@ export default function SalaryStructures() {
       <form onSubmit={handleSubmit} style={panelStyle}>
         <h3 style={{ margin: "0 0 12px", fontSize: 13.5 }}>Create a structure</h3>
         <div style={{ marginBottom: 10 }}>
-          <label style={labelStyle}>Name</label>
+          <label style={labelStyle}>Name<span style={{ color: tokens.oxblood, marginLeft: 3 }}>*</span></label>
           <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} required />
         </div>
         <div style={{ marginBottom: 14 }}>

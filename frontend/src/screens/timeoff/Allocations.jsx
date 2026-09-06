@@ -1,13 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { tokens, mono, panelStyle, buttonPrimary, inputStyle, labelStyle, numeral } from "../../tokens";
+import { tokens, mono, panelStyle, buttonPrimary, inputStyle, numeral } from "../../tokens";
+import Field, { fieldInputStyle } from "../../components/Field";
 import { timeoffApi } from "../../api/timeoffApi";
 import { coreApi } from "../../api/coreApi";
+import { validateRequired, validateMin, validateDateRange, runValidators, hasErrors, HINTS } from "../../validators";
+
+const emptyForm = { employee: "", time_off_type: "", allocated_days: "", valid_from: "", valid_to: "" };
+const allocatedDaysHint = "A positive number of days, greater than 0.";
 
 export default function Allocations() {
   const [allocations, setAllocations] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [types, setTypes] = useState([]);
-  const [form, setForm] = useState({ employee: "", time_off_type: "", allocated_days: "", valid_from: "", valid_to: "" });
+  const [form, setForm] = useState(emptyForm);
+  const [errors, setErrors] = useState({});
   const [error, setError] = useState("");
 
   useEffect(() => { load(); }, []);
@@ -22,14 +28,36 @@ export default function Allocations() {
     return item ? (item.first_name ? `${item.first_name} ${item.last_name}` : item.name) : `#${id}`;
   }
 
+  function handleChange(key, value) {
+    setForm({ ...form, [key]: value });
+    if (errors[key]) setErrors({ ...errors, [key]: "" });
+  }
+
+  function validateAll() {
+    const fieldErrors = runValidators(form, {
+      employee: validateRequired,
+      time_off_type: validateRequired,
+      allocated_days: (v) => validateMin(v, 0.01, allocatedDaysHint),
+      valid_from: validateRequired,
+    });
+    const dateError = validateDateRange(form.valid_from, form.valid_to);
+    if (dateError) fieldErrors.valid_to = dateError;
+    else if (!form.valid_to) fieldErrors.valid_to = HINTS.required;
+    return fieldErrors;
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    const fieldErrors = validateAll();
+    setErrors(fieldErrors);
+    if (hasErrors(fieldErrors)) return;
     try {
       await timeoffApi.createAllocation({
         ...form, employee: Number(form.employee), time_off_type: Number(form.time_off_type), status: "approved",
       });
-      setForm({ employee: "", time_off_type: "", allocated_days: "", valid_from: "", valid_to: "" });
+      setForm(emptyForm);
+      setErrors({});
       load();
     } catch (err) {
       setError(err.message);
@@ -63,33 +91,37 @@ export default function Allocations() {
       <form onSubmit={handleSubmit} style={panelStyle}>
         <h3 style={{ margin: "0 0 12px", fontSize: 13.5 }}>Grant allocation</h3>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-          <div>
-            <label style={labelStyle}>Employee</label>
-            <select style={inputStyle} value={form.employee} onChange={(e) => setForm({ ...form, employee: e.target.value })} required>
+          <Field label="Employee" required error={errors.employee}>
+            <select style={fieldInputStyle(!!errors.employee)} value={form.employee} onChange={(e) => handleChange("employee", e.target.value)}>
               <option value="">Select…</option>
               {employees.map((e) => <option key={e.id} value={e.id}>{e.first_name} {e.last_name}</option>)}
             </select>
-          </div>
-          <div>
-            <label style={labelStyle}>Type</label>
-            <select style={inputStyle} value={form.time_off_type} onChange={(e) => setForm({ ...form, time_off_type: e.target.value })} required>
+          </Field>
+          <Field label="Type" required error={errors.time_off_type}>
+            <select
+              style={fieldInputStyle(!!errors.time_off_type)} value={form.time_off_type}
+              onChange={(e) => {
+                const type = types.find((t) => String(t.id) === e.target.value);
+                handleChange("time_off_type", e.target.value);
+                if (type && type.default_allocated_days != null) {
+                  setForm((f) => ({ ...f, time_off_type: e.target.value, allocated_days: String(type.default_allocated_days) }));
+                }
+              }}
+            >
               <option value="">Select…</option>
               {types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
-          </div>
-          <div>
-            <label style={labelStyle}>Allocated days</label>
-            <input type="number" style={inputStyle} value={form.allocated_days} onChange={(e) => setForm({ ...form, allocated_days: e.target.value })} required />
-          </div>
+          </Field>
+          <Field label="Allocated days" required hint={allocatedDaysHint} error={errors.allocated_days}>
+            <input type="number" min="0.01" step="0.5" style={fieldInputStyle(!!errors.allocated_days)} value={form.allocated_days} onChange={(e) => handleChange("allocated_days", e.target.value)} />
+          </Field>
           <div />
-          <div>
-            <label style={labelStyle}>Valid from</label>
-            <input type="date" style={inputStyle} value={form.valid_from} onChange={(e) => setForm({ ...form, valid_from: e.target.value })} required />
-          </div>
-          <div>
-            <label style={labelStyle}>Valid to</label>
-            <input type="date" style={inputStyle} value={form.valid_to} onChange={(e) => setForm({ ...form, valid_to: e.target.value })} required />
-          </div>
+          <Field label="Valid from" required error={errors.valid_from}>
+            <input type="date" style={fieldInputStyle(!!errors.valid_from)} value={form.valid_from} onChange={(e) => handleChange("valid_from", e.target.value)} />
+          </Field>
+          <Field label="Valid to" required hint={HINTS.dateRange} error={errors.valid_to}>
+            <input type="date" style={fieldInputStyle(!!errors.valid_to)} value={form.valid_to} onChange={(e) => handleChange("valid_to", e.target.value)} />
+          </Field>
         </div>
         {error && <div style={{ color: tokens.oxblood, fontSize: 12, marginBottom: 10 }}>{error}</div>}
         <button type="submit" style={buttonPrimary}>Grant allocation</button>

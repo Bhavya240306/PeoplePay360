@@ -44,3 +44,19 @@ def refuse_request(request_obj):
     request_obj.status = TimeOffRequest.STATUS_REFUSED
     request_obj.save()
     return request_obj
+
+
+def submit_request(request_obj):
+    if request_obj.status != TimeOffRequest.STATUS_DRAFT:
+        raise ValidationError("Only draft requests can be submitted.")
+    request_obj.status = TimeOffRequest.STATUS_SUBMITTED
+    request_obj.save()
+    return request_obj
+
+
+def cancel_request(request_obj):
+    if request_obj.status not in (TimeOffRequest.STATUS_DRAFT, TimeOffRequest.STATUS_SUBMITTED):
+        raise ValidationError("Only draft or submitted requests can be cancelled.")
+    request_obj.status = TimeOffRequest.STATUS_CANCELLED
+    request_obj.save()
+    return request_obj
