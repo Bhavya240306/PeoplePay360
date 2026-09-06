@@ -1,4 +1,5 @@
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets
+from accounts.permissions import IsAdmin
 from .models import AuditLog
 from .serializers import AuditLogSerializer
 
@@ -10,7 +11,7 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     record_id=3 to power a "History" tab on any specific record.
     """
     serializer_class = AuditLogSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdmin]
 
     def get_queryset(self):
         qs = AuditLog.objects.all()

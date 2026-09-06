@@ -95,10 +95,35 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Shared device key the offline attendance scanner authenticates with
+# (see accounts.permissions.HasScannerKey) - separate from the per-employee
+# QR token, which identifies *who* scanned rather than *what device* scanned.
+SCANNER_API_KEY = config("SCANNER_API_KEY", default="peoplepay360-scanner-key")
+
+# Real delivery via Gmail SMTP once EMAIL_HOST_USER (a Gmail address) and
+# EMAIL_HOST_PASSWORD (a Gmail *App Password*, not the account password)
+# are set in .env. Falls back to the console backend otherwise, so the
+# project still runs out of the box without email creds configured.
+if config("EMAIL_HOST_USER", default=""):
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = 'smtp.gmail.com'
+    EMAIL_PORT = 587
+    EMAIL_USE_TLS = True
+    EMAIL_HOST_USER = config("EMAIL_HOST_USER")
+    EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD")
+    DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
 }
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://localhost:5174",
+]

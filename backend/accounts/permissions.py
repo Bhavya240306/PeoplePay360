@@ -1,3 +1,4 @@
+from django.conf import settings
 from rest_framework.permissions import BasePermission
 from .models import UserProfile
 
@@ -31,3 +32,17 @@ class IsHRPayrollManagerOrAbove(HasMinimumRole):
 
 class IsAdmin(HasMinimumRole):
     minimum_role = UserProfile.ROLE_ADMIN
+
+
+class HasScannerKey(BasePermission):
+    """
+    Lets the offline attendance scanner (a standalone script run on a
+    kiosk PC, not a logged-in browser) call qr_scan without a user
+    session - it authenticates with a shared device key instead, sent as
+    X-Scanner-Key. The scanned QR token itself then identifies *which*
+    employee the scan is for.
+    """
+
+    def has_permission(self, request, view):
+        key = request.headers.get("X-Scanner-Key", "")
+        return bool(settings.SCANNER_API_KEY) and key == settings.SCANNER_API_KEY

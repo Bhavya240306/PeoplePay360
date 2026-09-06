@@ -2,8 +2,8 @@ from decimal import Decimal
 from django.db.models import Sum, Avg, Count, Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import permissions
 
+from accounts.permissions import IsHRPayrollUserOrAbove
 from payroll.models import Payslip, PayslipLine, Payrun
 from core.models import Employee, Contract, Attendance
 from timeoff.models import TimeOffRequest
@@ -16,7 +16,7 @@ class DashboardView(APIView):
     query params, matching the brief's Period/Department/Employee Type
     filter bar. Always queries live data, never a cached/duplicated copy.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsHRPayrollUserOrAbove]
 
     def get(self, request):
         period_start = request.query_params.get("period_start")
