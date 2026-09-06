@@ -2,17 +2,27 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { tokens, mono, sans, panelStyle, buttonPrimary, inputStyle, labelStyle, numeral, overlayStyle } from "../tokens";
 import StatusBadge from "../components/StatusBadge";
+import ViewToggle from "../components/ViewToggle";
 import { coreApi } from "../api/coreApi";
 
 export default function Employees() {
   const [employees, setEmployees] = useState([]);
   const [creating, setCreating] = useState(false);
+  const [view, setView] = useState("list");
   const navigate = useNavigate();
 
   useEffect(() => { load(); }, []);
   function load() {
     coreApi.listEmployees().then(setEmployees);
   }
+
+  const byDepartment = {};
+  employees.forEach((e) => {
+    const key = e.department || "Unassigned";
+    (byDepartment[key] = byDepartment[key] || []).push(e);
+  });
+  const departments = Object.keys(byDepartment).sort((a, b) =>
+    a === "Unassigned" ? 1 : b === "Unassigned" ? -1 : a.localeCompare(b));
 
   return (
     <div style={{ padding: "24px 28px", maxWidth: 1000 }}>
@@ -23,39 +33,71 @@ export default function Employees() {
             {String(employees.length).padStart(2, "0")} entries
           </p>
         </div>
-        <button style={buttonPrimary} onClick={() => setCreating(true)}>+ New entry</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <ViewToggle view={view} onChange={setView} />
+          <button style={buttonPrimary} onClick={() => setCreating(true)}>+ New entry</button>
+        </div>
       </div>
 
-      <div>
-        <div style={{ display: "flex", fontFamily: mono, fontSize: 10.5, color: tokens.inkMuted, borderBottom: `1px solid ${tokens.ruleStrong}`, paddingBottom: 6, marginBottom: 2 }}>
-          <div style={{ width: 40 }}>№</div>
-          <div style={{ width: 90 }}>ID</div>
-          <div style={{ flex: 2 }}>Name</div>
-          <div style={{ flex: 1.4 }}>Department</div>
-          <div style={{ flex: 1.4 }}>Job title</div>
-          <div style={{ width: 90 }}>Status</div>
+      {view === "board" ? (
+        <div style={{ display: "flex", gap: 16, alignItems: "flex-start", overflowX: "auto" }}>
+          {departments.map((dept) => (
+            <div key={dept} style={{ flex: "1 0 200px", minWidth: 200 }}>
+              <div style={{ fontFamily: mono, fontSize: 10.5, color: tokens.inkMuted, marginBottom: 8, display: "flex", justifyContent: "space-between" }}>
+                <span>{dept}</span>
+                <span>{byDepartment[dept].length}</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {byDepartment[dept].map((e) => (
+                  <div
+                    key={e.id}
+                    onClick={() => navigate(`/employees/${e.id}`)}
+                    style={{ ...panelStyle, padding: "10px 12px", cursor: "pointer" }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{e.first_name} {e.last_name}</div>
+                    <div style={{ fontSize: 12, color: tokens.inkMuted, marginBottom: 8 }}>{e.job_title || "—"}</div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ ...numeral, fontSize: 11.5, color: tokens.inkMuted }}>{e.employee_id}</span>
+                      <StatusBadge status={e.is_active ? "Active" : "Inactive"} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
-        {employees.map((e, i) => (
-          <div
-            key={e.id}
-            onClick={() => navigate(`/employees/${e.id}`)}
-            style={{
-              display: "flex", alignItems: "center", padding: "10px 0",
-              borderBottom: `1px solid ${tokens.rule}`, cursor: "pointer", fontSize: 13.5,
-            }}
-          >
-            <div style={{ width: 40, ...numeral, color: tokens.inkMuted, fontSize: 12 }}>{String(i + 1).padStart(2, "0")}</div>
-            <div style={{ width: 90, ...numeral, fontSize: 12.5 }}>{e.employee_id}</div>
-            <div style={{ flex: 2 }}>{e.first_name} {e.last_name}</div>
-            <div style={{ flex: 1.4, color: tokens.inkMuted }}>{e.department || "—"}</div>
-            <div style={{ flex: 1.4, color: tokens.inkMuted }}>{e.job_title || "—"}</div>
-            <div style={{ width: 90 }}><StatusBadge status={e.is_active ? "Active" : "Inactive"} /></div>
+      ) : (
+        <div>
+          <div style={{ display: "flex", fontFamily: mono, fontSize: 10.5, color: tokens.inkMuted, borderBottom: `1px solid ${tokens.ruleStrong}`, paddingBottom: 6, marginBottom: 2 }}>
+            <div style={{ width: 40 }}>№</div>
+            <div style={{ width: 90 }}>ID</div>
+            <div style={{ flex: 2 }}>Name</div>
+            <div style={{ flex: 1.4 }}>Department</div>
+            <div style={{ flex: 1.4 }}>Job title</div>
+            <div style={{ width: 90 }}>Status</div>
           </div>
-        ))}
-        {employees.length === 0 && (
-          <p style={{ color: tokens.inkMuted, fontSize: 13, padding: "16px 0" }}>No entries recorded yet.</p>
-        )}
-      </div>
+          {employees.map((e, i) => (
+            <div
+              key={e.id}
+              onClick={() => navigate(`/employees/${e.id}`)}
+              style={{
+                display: "flex", alignItems: "center", padding: "10px 0",
+                borderBottom: `1px solid ${tokens.rule}`, cursor: "pointer", fontSize: 13.5,
+              }}
+            >
+              <div style={{ width: 40, ...numeral, color: tokens.inkMuted, fontSize: 12 }}>{String(i + 1).padStart(2, "0")}</div>
+              <div style={{ width: 90, ...numeral, fontSize: 12.5 }}>{e.employee_id}</div>
+              <div style={{ flex: 2 }}>{e.first_name} {e.last_name}</div>
+              <div style={{ flex: 1.4, color: tokens.inkMuted }}>{e.department || "—"}</div>
+              <div style={{ flex: 1.4, color: tokens.inkMuted }}>{e.job_title || "—"}</div>
+              <div style={{ width: 90 }}><StatusBadge status={e.is_active ? "Active" : "Inactive"} /></div>
+            </div>
+          ))}
+          {employees.length === 0 && (
+            <p style={{ color: tokens.inkMuted, fontSize: 13, padding: "16px 0" }}>No entries recorded yet.</p>
+          )}
+        </div>
+      )}
 
       {creating && <EmployeeCreateForm onClose={() => setCreating(false)} onCreated={() => { setCreating(false); load(); }} />}
     </div>

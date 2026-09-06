@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { tokens, mono, panelStyle, buttonPrimary, inputStyle, labelStyle } from "../../tokens";
+import { tokens, mono, panelStyle, buttonPrimary, inputStyle, labelStyle, numeral } from "../../tokens";
 import { timeoffApi } from "../../api/timeoffApi";
+
+const emptyForm = {
+  name: "", requires_allocation: true, requires_approval: true, affects_payroll: false,
+  is_active: true, default_allocated_days: "",
+};
 
 export default function TimeOffTypes() {
   const [types, setTypes] = useState([]);
-  const [form, setForm] = useState({ name: "", requires_allocation: true, requires_approval: true, affects_payroll: false, is_active: true });
+  const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
 
   useEffect(() => { load(); }, []);
@@ -14,8 +19,12 @@ export default function TimeOffTypes() {
     e.preventDefault();
     setError("");
     try {
-      await timeoffApi.createType(form);
-      setForm({ name: "", requires_allocation: true, requires_approval: true, affects_payroll: false, is_active: true });
+      await timeoffApi.createType({
+        ...form,
+        default_allocated_days: form.affects_payroll || form.default_allocated_days === ""
+          ? null : Number(form.default_allocated_days),
+      });
+      setForm(emptyForm);
       load();
     } catch (err) {
       setError(err.message);
@@ -32,6 +41,7 @@ export default function TimeOffTypes() {
           <div style={{ flex: 1 }}>Allocation?</div>
           <div style={{ flex: 1 }}>Approval?</div>
           <div style={{ flex: 1 }}>Affects payroll?</div>
+          <div style={{ flex: 1 }}>Allocated days</div>
         </div>
         {types.map((t) => (
           <div key={t.id} style={{ display: "flex", padding: "9px 0", borderBottom: `1px solid ${tokens.rule}`, fontSize: 13.5 }}>
@@ -39,6 +49,9 @@ export default function TimeOffTypes() {
             <div style={{ flex: 1, color: tokens.inkMuted }}>{t.requires_allocation ? "Yes" : "No"}</div>
             <div style={{ flex: 1, color: tokens.inkMuted }}>{t.requires_approval ? "Yes" : "No"}</div>
             <div style={{ flex: 1, color: tokens.inkMuted }}>{t.affects_payroll ? "Yes" : "No"}</div>
+            <div style={{ flex: 1, ...numeral, color: tokens.inkMuted }}>
+              {!t.affects_payroll && t.default_allocated_days != null ? t.default_allocated_days : "—"}
+            </div>
           </div>
         ))}
         {types.length === 0 && <p style={{ color: tokens.inkMuted, fontSize: 13, padding: "16px 0" }}>No types defined.</p>}
@@ -52,10 +65,27 @@ export default function TimeOffTypes() {
         </div>
         {["requires_allocation", "requires_approval", "affects_payroll"].map((key) => (
           <label key={key} style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6, marginBottom: 8, textTransform: "capitalize" }}>
-            <input type="checkbox" checked={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.checked })} />
+            <input
+              type="checkbox"
+              checked={form[key]}
+              onChange={(e) => setForm({
+                ...form, [key]: e.target.checked,
+                ...(key === "affects_payroll" && e.target.checked ? { default_allocated_days: "" } : {}),
+              })}
+            />
             {key.replace(/_/g, " ")}
           </label>
         ))}
+        {!form.affects_payroll && (
+          <div style={{ marginBottom: 8 }}>
+            <label style={labelStyle}>Allocated days (per employee, standard)</label>
+            <input
+              type="number" min="0" step="0.5" style={inputStyle}
+              value={form.default_allocated_days}
+              onChange={(e) => setForm({ ...form, default_allocated_days: e.target.value })}
+            />
+          </div>
+        )}
         {error && <div style={{ color: tokens.oxblood, fontSize: 12, margin: "10px 0" }}>{error}</div>}
         <button type="submit" style={{ ...buttonPrimary, marginTop: 6 }}>Create type</button>
       </form>

@@ -9,6 +9,9 @@ export const timeoffApi = {
 
   listRequests: () => api.get("/timeoff/timeoff-requests/"),
   createRequest: (data) => api.post("/timeoff/timeoff-requests/", data),
+  updateRequest: (id, data) => api.patch(`/timeoff/timeoff-requests/${id}/`, data),
+  submitRequest: (id) => api.post(`/timeoff/timeoff-requests/${id}/submit/`, {}),
+  cancelRequest: (id) => api.post(`/timeoff/timeoff-requests/${id}/cancel/`, {}),
   approveRequest: (id) => api.post(`/timeoff/timeoff-requests/${id}/approve/`, {}),
   refuseRequest: (id) => api.post(`/timeoff/timeoff-requests/${id}/refuse/`, {}),
 };

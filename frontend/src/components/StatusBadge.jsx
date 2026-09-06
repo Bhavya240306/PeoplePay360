@@ -22,6 +22,7 @@ const COLOR_MAP = {
   Absent: tokens.oxblood,
   Expired: tokens.oxblood,
   Refused: tokens.oxblood,
+  Cancelled: tokens.oxblood,
   "Missing check-out": tokens.oxblood,
 
   "Full-time": tokens.slate,

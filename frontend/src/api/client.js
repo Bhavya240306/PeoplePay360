@@ -20,6 +20,21 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+// DRF error bodies come in a few shapes: {"detail": "..."}, plain
+// {"non_field_errors": ["..."]}, or {"field": ["error", ...]} per
+// invalid field - flatten whichever one we got into one readable line.
+function extractErrorMessage(body) {
+  if (!body || typeof body !== "object") return body || null;
+  if (typeof body.detail === "string") return body.detail;
+
+  const parts = [];
+  for (const [key, value] of Object.entries(body)) {
+    const text = Array.isArray(value) ? value.join(" ") : String(value);
+    parts.push(key === "non_field_errors" ? text : `${key}: ${text}`);
+  }
+  return parts.length ? parts.join(" ") : null;
+}
+
 async function request(path, options = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
@@ -38,7 +53,7 @@ async function request(path, options = {}) {
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    const message = body.detail || (typeof body === "object" ? JSON.stringify(body) : body) || `${res.status} ${res.statusText}`;
+    const message = extractErrorMessage(body) || `${res.status} ${res.statusText}`;
     throw new Error(message);
   }
 

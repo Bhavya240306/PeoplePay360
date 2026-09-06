@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { tokens, mono, panelStyle, buttonPrimary, inputStyle, labelStyle, numeral, overlayStyle } from "../tokens";
 import StatusBadge from "../components/StatusBadge";
+import ViewToggle from "../components/ViewToggle";
 import { coreApi } from "../api/coreApi";
 
 const emptyForm = {
@@ -8,12 +9,18 @@ const emptyForm = {
   basic_salary: "", working_hours_per_week: 40, is_active: true,
 };
 
+const BOARD_COLUMNS = [
+  { key: "active", label: "Active", match: (c) => c.is_active },
+  { key: "expired", label: "Expired", match: (c) => !c.is_active },
+];
+
 export default function Contracts() {
   const [contracts, setContracts] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [view, setView] = useState("list");
 
   useEffect(() => { load(); }, []);
   function load() {
@@ -48,32 +55,62 @@ export default function Contracts() {
             {String(contracts.length).padStart(2, "0")} entries
           </p>
         </div>
-        <button style={buttonPrimary} onClick={() => setShowForm(true)}>+ New contract</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <ViewToggle view={view} onChange={setView} />
+          <button style={buttonPrimary} onClick={() => setShowForm(true)}>+ New contract</button>
+        </div>
       </div>
 
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ display: "flex", fontFamily: mono, fontSize: 10.5, color: tokens.inkMuted, borderBottom: `1px solid ${tokens.ruleStrong}`, paddingBottom: 6 }}>
-          <div style={{ width: 40 }}>№</div>
-          <div style={{ flex: 1.6 }}>Employee</div>
-          <div style={{ flex: 1 }}>Type</div>
-          <div style={{ flex: 1 }}>Start</div>
-          <div style={{ flex: 1 }}>End</div>
-          <div style={{ flex: 1 }}>Wage</div>
-          <div style={{ width: 90 }}>Status</div>
+      {view === "board" ? (
+        <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginBottom: 24 }}>
+          {BOARD_COLUMNS.map((col) => {
+            const items = contracts.filter(col.match);
+            return (
+              <div key={col.key} style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: mono, fontSize: 10.5, color: tokens.inkMuted, marginBottom: 8, display: "flex", justifyContent: "space-between" }}>
+                  <span>{col.label}</span>
+                  <span>{items.length}</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {items.map((c) => (
+                    <div key={c.id} style={{ ...panelStyle, padding: "10px 12px" }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{employeeName(c.employee)}</div>
+                      <div style={{ fontSize: 12, color: tokens.inkMuted, marginBottom: 4 }}>{c.contract_type}</div>
+                      <div style={{ ...numeral, fontSize: 12, marginBottom: 8 }}>{c.start_date} → {c.end_date || "ongoing"}</div>
+                      <div style={{ ...numeral, fontSize: 12.5, fontWeight: 500 }}>₹{c.basic_salary}</div>
+                    </div>
+                  ))}
+                  {items.length === 0 && <p style={{ color: tokens.inkMuted, fontSize: 12 }}>—</p>}
+                </div>
+              </div>
+            );
+          })}
         </div>
-        {contracts.map((c, i) => (
-          <div key={c.id} style={{ display: "flex", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${tokens.rule}`, fontSize: 13.5 }}>
-            <div style={{ width: 40, ...numeral, color: tokens.inkMuted, fontSize: 12 }}>{String(i + 1).padStart(2, "0")}</div>
-            <div style={{ flex: 1.6 }}>{employeeName(c.employee)}</div>
-            <div style={{ flex: 1, color: tokens.inkMuted }}>{c.contract_type}</div>
-            <div style={{ flex: 1, ...numeral, fontSize: 12.5 }}>{c.start_date}</div>
-            <div style={{ flex: 1, ...numeral, fontSize: 12.5 }}>{c.end_date || "ongoing"}</div>
-            <div style={{ flex: 1, ...numeral, fontSize: 12.5 }}>₹{c.basic_salary}</div>
-            <div style={{ width: 90 }}><StatusBadge status={c.is_active ? "Active" : "Expired"} /></div>
+      ) : (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: "flex", fontFamily: mono, fontSize: 10.5, color: tokens.inkMuted, borderBottom: `1px solid ${tokens.ruleStrong}`, paddingBottom: 6 }}>
+            <div style={{ width: 40 }}>№</div>
+            <div style={{ flex: 1.6 }}>Employee</div>
+            <div style={{ flex: 1 }}>Type</div>
+            <div style={{ flex: 1 }}>Start</div>
+            <div style={{ flex: 1 }}>End</div>
+            <div style={{ flex: 1 }}>Wage</div>
+            <div style={{ width: 90 }}>Status</div>
           </div>
-        ))}
-        {contracts.length === 0 && <p style={{ color: tokens.inkMuted, fontSize: 13, padding: "16px 0" }}>No contracts recorded.</p>}
-      </div>
+          {contracts.map((c, i) => (
+            <div key={c.id} style={{ display: "flex", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${tokens.rule}`, fontSize: 13.5 }}>
+              <div style={{ width: 40, ...numeral, color: tokens.inkMuted, fontSize: 12 }}>{String(i + 1).padStart(2, "0")}</div>
+              <div style={{ flex: 1.6 }}>{employeeName(c.employee)}</div>
+              <div style={{ flex: 1, color: tokens.inkMuted }}>{c.contract_type}</div>
+              <div style={{ flex: 1, ...numeral, fontSize: 12.5 }}>{c.start_date}</div>
+              <div style={{ flex: 1, ...numeral, fontSize: 12.5 }}>{c.end_date || "ongoing"}</div>
+              <div style={{ flex: 1, ...numeral, fontSize: 12.5 }}>₹{c.basic_salary}</div>
+              <div style={{ width: 90 }}><StatusBadge status={c.is_active ? "Active" : "Expired"} /></div>
+            </div>
+          ))}
+          {contracts.length === 0 && <p style={{ color: tokens.inkMuted, fontSize: 13, padding: "16px 0" }}>No contracts recorded.</p>}
+        </div>
+      )}
 
       {showForm && (
         <div style={overlayStyle}>

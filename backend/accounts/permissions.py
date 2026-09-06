@@ -18,6 +18,16 @@ class HasMinimumRole(BasePermission):
         return role is not None and role >= self.minimum_role
 
 
+class IsEmployeeRole(BasePermission):
+    """
+    Exact-match, not a minimum-role check - time off requests are
+    submitted by employees for themselves, not by their managers.
+    """
+
+    def has_permission(self, request, view):
+        return _get_role(request) == UserProfile.ROLE_EMPLOYEE
+
+
 class IsHRManagerOrAbove(HasMinimumRole):
     minimum_role = UserProfile.ROLE_HR_MANAGER
 

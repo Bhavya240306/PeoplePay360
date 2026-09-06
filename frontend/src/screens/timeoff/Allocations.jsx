@@ -72,7 +72,18 @@ export default function Allocations() {
           </div>
           <div>
             <label style={labelStyle}>Type</label>
-            <select style={inputStyle} value={form.time_off_type} onChange={(e) => setForm({ ...form, time_off_type: e.target.value })} required>
+            <select
+              style={inputStyle} value={form.time_off_type}
+              onChange={(e) => {
+                const type = types.find((t) => String(t.id) === e.target.value);
+                setForm({
+                  ...form, time_off_type: e.target.value,
+                  allocated_days: type && type.default_allocated_days != null
+                    ? String(type.default_allocated_days) : form.allocated_days,
+                });
+              }}
+              required
+            >
               <option value="">Select…</option>
               {types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
