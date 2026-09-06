@@ -247,7 +247,7 @@ export default function TimeOffRequests() {
               <button type="button" onClick={closeForm} style={{ border: "none", background: "none", cursor: "pointer", color: tokens.inkMuted }}>✕</button>
             </div>
             <div style={{ marginBottom: 10 }}>
-              <label style={labelStyle}>Type</label>
+              <label style={labelStyle}>Type<span style={{ color: tokens.oxblood, marginLeft: 3 }}>*</span></label>
               <select style={inputStyle} value={form.time_off_type} onChange={(e) => setForm({ ...form, time_off_type: e.target.value })} required>
                 <option value="">Select…</option>
                 {types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -255,11 +255,11 @@ export default function TimeOffRequests() {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 10 }}>
               <div>
-                <label style={labelStyle}>From</label>
+                <label style={labelStyle}>From<span style={{ color: tokens.oxblood, marginLeft: 3 }}>*</span></label>
                 <input type="date" style={inputStyle} value={form.date_from} onChange={(e) => setForm({ ...form, date_from: e.target.value })} required />
               </div>
               <div>
-                <label style={labelStyle}>To</label>
+                <label style={labelStyle}>To<span style={{ color: tokens.oxblood, marginLeft: 3 }}>*</span></label>
                 <input type="date" style={inputStyle} value={form.date_to} onChange={(e) => setForm({ ...form, date_to: e.target.value })} required />
               </div>
             </div>

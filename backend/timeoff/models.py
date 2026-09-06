@@ -1,3 +1,4 @@
+from django.core.validators import MinValueValidator
 from django.db import models
 from core.models import Employee
 
@@ -18,7 +19,9 @@ class TimeOffType(models.Model):
     # Standard number of days granted per employee for this type - only
     # meaningful for types that don't affect payroll (a paid, balance-
     # tracked leave type). Unpaid leave has no cap, so no default to set.
-    default_allocated_days = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    default_allocated_days = models.DecimalField(
+        max_digits=6, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)]
+    )
 
     def __str__(self):
         return self.name
@@ -37,7 +40,7 @@ class Allocation(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE, related_name="allocations")
     time_off_type = models.ForeignKey(TimeOffType, on_delete=models.PROTECT, related_name="allocations")
 
-    allocated_days = models.DecimalField(max_digits=6, decimal_places=2)
+    allocated_days = models.DecimalField(max_digits=6, decimal_places=2, validators=[MinValueValidator(0.01)])
     used_days = models.DecimalField(max_digits=6, decimal_places=2, default=0)
     valid_from = models.DateField()
     valid_to = models.DateField()

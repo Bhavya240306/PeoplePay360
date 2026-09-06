@@ -27,6 +27,13 @@ class AllocationSerializer(serializers.ModelSerializer):
         fields = ["id", "employee", "time_off_type", "allocated_days", "used_days",
                   "remaining_days", "valid_from", "valid_to", "status"]
 
+    def validate(self, attrs):
+        valid_from = attrs.get("valid_from") or getattr(self.instance, "valid_from", None)
+        valid_to = attrs.get("valid_to") or getattr(self.instance, "valid_to", None)
+        if valid_from and valid_to and valid_to < valid_from:
+            raise serializers.ValidationError("Valid-to date must be on or after the valid-from date.")
+        return attrs
+
 
 class TimeOffRequestSerializer(serializers.ModelSerializer):
     class Meta:

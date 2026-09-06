@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { tokens, mono, panelStyle, buttonPrimary, inputStyle, labelStyle, numeral } from "../../tokens";
+import { tokens, mono, panelStyle, buttonPrimary, inputStyle, numeral } from "../../tokens";
+import Field, { fieldInputStyle } from "../../components/Field";
 import { timeoffApi } from "../../api/timeoffApi";
+import { validateRequired, validateNonNegative, runValidators, hasErrors, HINTS } from "../../validators";
 
 const emptyForm = {
   name: "", requires_allocation: true, requires_approval: true, affects_payroll: false,
@@ -10,14 +12,31 @@ const emptyForm = {
 export default function TimeOffTypes() {
   const [types, setTypes] = useState([]);
   const [form, setForm] = useState(emptyForm);
+  const [errors, setErrors] = useState({});
   const [error, setError] = useState("");
 
   useEffect(() => { load(); }, []);
   function load() { timeoffApi.listTypes().then(setTypes); }
 
+  function handleChange(key, value) {
+    setForm({ ...form, [key]: value });
+    if (errors[key]) setErrors({ ...errors, [key]: "" });
+  }
+
+  function validateAll() {
+    const map = { name: validateRequired };
+    if (!form.affects_payroll && form.default_allocated_days !== "") {
+      map.default_allocated_days = (v) => validateNonNegative(v, { optional: true });
+    }
+    return runValidators(form, map);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    const fieldErrors = validateAll();
+    setErrors(fieldErrors);
+    if (hasErrors(fieldErrors)) return;
     try {
       await timeoffApi.createType({
         ...form,
@@ -25,6 +44,7 @@ export default function TimeOffTypes() {
           ? null : Number(form.default_allocated_days),
       });
       setForm(emptyForm);
+      setErrors({});
       load();
     } catch (err) {
       setError(err.message);
@@ -59,10 +79,9 @@ export default function TimeOffTypes() {
 
       <form onSubmit={handleSubmit} style={panelStyle}>
         <h3 style={{ margin: "0 0 12px", fontSize: 13.5 }}>New type</h3>
-        <div style={{ marginBottom: 10 }}>
-          <label style={labelStyle}>Name</label>
-          <input style={inputStyle} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-        </div>
+        <Field label="Name" required error={errors.name} style={{ marginBottom: 10 }}>
+          <input style={fieldInputStyle(!!errors.name)} value={form.name} onChange={(e) => handleChange("name", e.target.value)} />
+        </Field>
         {["requires_allocation", "requires_approval", "affects_payroll"].map((key) => (
           <label key={key} style={{ fontSize: 12.5, display: "flex", alignItems: "center", gap: 6, marginBottom: 8, textTransform: "capitalize" }}>
             <input
@@ -77,14 +96,13 @@ export default function TimeOffTypes() {
           </label>
         ))}
         {!form.affects_payroll && (
-          <div style={{ marginBottom: 8 }}>
-            <label style={labelStyle}>Allocated days (per employee, standard)</label>
+          <Field label="Allocated days (per employee, standard)" hint={HINTS.allocatedDays} error={errors.default_allocated_days} style={{ marginBottom: 8 }}>
             <input
-              type="number" min="0" step="0.5" style={inputStyle}
+              type="number" min="0" step="0.5" style={fieldInputStyle(!!errors.default_allocated_days)}
               value={form.default_allocated_days}
-              onChange={(e) => setForm({ ...form, default_allocated_days: e.target.value })}
+              onChange={(e) => handleChange("default_allocated_days", e.target.value)}
             />
-          </div>
+          </Field>
         )}
         {error && <div style={{ color: tokens.oxblood, fontSize: 12, margin: "10px 0" }}>{error}</div>}
         <button type="submit" style={{ ...buttonPrimary, marginTop: 6 }}>Create type</button>

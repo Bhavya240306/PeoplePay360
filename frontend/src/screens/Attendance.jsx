@@ -2,7 +2,9 @@ import React, { useEffect, useState } from "react";
 import { tokens, mono, panelStyle, buttonPrimary, inputStyle, labelStyle, numeral, overlayStyle } from "../tokens";
 import StatusBadge from "../components/StatusBadge";
 import ViewToggle from "../components/ViewToggle";
+import Field, { fieldInputStyle } from "../components/Field";
 import { coreApi } from "../api/coreApi";
+import { validateRequired, validateWorkedHours, validateTimeRange, runValidators, hasErrors, HINTS } from "../validators";
 
 const emptyForm = { employee: "", date: "", check_in: "", check_out: "", status: "present", worked_hours: 0, notes: "" };
 
@@ -18,6 +20,7 @@ export default function Attendance() {
   const [employees, setEmployees] = useState([]);
   const [filterEmployee, setFilterEmployee] = useState("");
   const [form, setForm] = useState(emptyForm);
+  const [errors, setErrors] = useState({});
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
   const [view, setView] = useState("list");
@@ -34,12 +37,32 @@ export default function Attendance() {
     return e ? `${e.first_name} ${e.last_name}` : `#${id}`;
   }
 
+  function handleChange(key, value) {
+    setForm({ ...form, [key]: value });
+    if (errors[key]) setErrors({ ...errors, [key]: "" });
+  }
+
+  function validateAll() {
+    const fieldErrors = runValidators(form, {
+      employee: validateRequired,
+      date: validateRequired,
+      worked_hours: validateWorkedHours,
+    });
+    const timeError = validateTimeRange(form.check_in, form.check_out);
+    if (timeError) fieldErrors.check_out = timeError;
+    return fieldErrors;
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    const fieldErrors = validateAll();
+    setErrors(fieldErrors);
+    if (hasErrors(fieldErrors)) return;
     try {
       await coreApi.createAttendance({ ...form, employee: Number(form.employee) });
       setForm(emptyForm);
+      setErrors({});
       setShowForm(false);
       load();
     } catch (err) {
@@ -137,35 +160,33 @@ export default function Attendance() {
               <h3 style={{ margin: 0, fontSize: 15 }}>Log attendance</h3>
               <button type="button" onClick={() => setShowForm(false)} style={{ border: "none", background: "none", cursor: "pointer", color: tokens.inkMuted }}>✕</button>
             </div>
-            <div style={{ marginBottom: 10 }}>
-              <label style={labelStyle}>Employee</label>
-              <select style={inputStyle} value={form.employee} onChange={(e) => setForm({ ...form, employee: e.target.value })} required>
+            <Field label="Employee" required error={errors.employee} style={{ marginBottom: 12 }}>
+              <select style={fieldInputStyle(!!errors.employee)} value={form.employee} onChange={(e) => handleChange("employee", e.target.value)}>
                 <option value="">Select…</option>
                 {employees.map((e) => <option key={e.id} value={e.id}>{e.first_name} {e.last_name}</option>)}
               </select>
-            </div>
+            </Field>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 10 }}>
-              <div>
-                <label style={labelStyle}>Date</label>
-                <input type="date" style={inputStyle} value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
-              </div>
-              <div>
-                <label style={labelStyle}>Status</label>
-                <select style={inputStyle} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+              <Field label="Date" required error={errors.date}>
+                <input type="date" style={fieldInputStyle(!!errors.date)} value={form.date} onChange={(e) => handleChange("date", e.target.value)} />
+              </Field>
+              <Field label="Status">
+                <select style={inputStyle} value={form.status} onChange={(e) => handleChange("status", e.target.value)}>
                   <option value="present">Present</option>
                   <option value="absent">Absent</option>
                   <option value="late">Late</option>
                   <option value="half_day">Half day</option>
                 </select>
-              </div>
-              <div>
-                <label style={labelStyle}>Check in</label>
-                <input type="time" style={inputStyle} value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value })} />
-              </div>
-              <div>
-                <label style={labelStyle}>Check out</label>
-                <input type="time" style={inputStyle} value={form.check_out} onChange={(e) => setForm({ ...form, check_out: e.target.value })} />
-              </div>
+              </Field>
+              <Field label="Check in">
+                <input type="time" style={inputStyle} value={form.check_in} onChange={(e) => handleChange("check_in", e.target.value)} />
+              </Field>
+              <Field label="Check out" hint={HINTS.timeRange} error={errors.check_out}>
+                <input type="time" style={fieldInputStyle(!!errors.check_out)} value={form.check_out} onChange={(e) => handleChange("check_out", e.target.value)} />
+              </Field>
+              <Field label="Worked hours" hint={HINTS.workedHours} error={errors.worked_hours} style={{ gridColumn: "span 2" }}>
+                <input type="number" min="0" max="24" step="0.25" style={fieldInputStyle(!!errors.worked_hours)} value={form.worked_hours} onChange={(e) => handleChange("worked_hours", e.target.value)} />
+              </Field>
             </div>
             {error && <div style={{ color: tokens.oxblood, fontSize: 12, marginBottom: 10 }}>{error}</div>}
             <button type="submit" style={buttonPrimary}>Record entry</button>

@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { tokens, mono, panelStyle, buttonPrimary, inputStyle, labelStyle } from "../tokens";
 import StatusBadge from "../components/StatusBadge";
+import Field, { fieldInputStyle } from "../components/Field";
 import { accountsApi } from "../api/accountsApi";
+import {
+  validateRequired, validateEmployeeId, validatePersonName, validatePhone, validateBankAccount,
+  runValidators, hasErrors, HINTS,
+} from "../validators";
 
 const ROLES = [
   { value: 0, label: "Employee" },
@@ -31,6 +36,7 @@ const initialForm = {
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
   const [form, setForm] = useState(initialForm);
+  const [errors, setErrors] = useState({});
   const [error, setError] = useState("");
 
   useEffect(() => { load(); }, []);
@@ -38,9 +44,35 @@ export default function UserManagement() {
     accountsApi.listUsers().then(setUsers).catch(() => setUsers([]));
   }
 
+  function handleChange(key, value) {
+    setForm({ ...form, [key]: value });
+    if (errors[key]) setErrors({ ...errors, [key]: "" });
+  }
+
+  function validateAll() {
+    const map = {
+      username: validateRequired,
+      password: (v) => (v && v.length >= 8 ? "" : HINTS.password),
+      first_name: validatePersonName,
+      last_name: (v) => validatePersonName(v, { optional: true }),
+    };
+    if (Number(form.role) === EMPLOYEE_ROLE) {
+      Object.assign(map, {
+        employee_id: validateEmployeeId,
+        phone: validatePhone,
+        bank_account: validateBankAccount,
+        date_of_joining: validateRequired,
+      });
+    }
+    return runValidators(form, map);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    const fieldErrors = validateAll();
+    setErrors(fieldErrors);
+    if (hasErrors(fieldErrors)) return;
     try {
       const role = Number(form.role);
       const payload = { username: form.username, email: form.email, password: form.password, role, first_name: form.first_name, last_name: form.last_name };
@@ -56,6 +88,7 @@ export default function UserManagement() {
       }
       await accountsApi.createUser(payload);
       setForm(initialForm);
+      setErrors({});
       load();
     } catch (err) {
       setError(err.message);
@@ -86,62 +119,50 @@ export default function UserManagement() {
       <form onSubmit={handleSubmit} style={panelStyle}>
         <h3 style={{ margin: "0 0 12px", fontSize: 13.5 }}>Create user</h3>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-          <div>
-            <label style={labelStyle}>Username</label>
-            <input style={inputStyle} value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} required />
-          </div>
-          <div>
-            <label style={labelStyle}>Email</label>
-            <input type="email" style={inputStyle} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-          </div>
-          <div>
-            <label style={labelStyle}>Password</label>
-            <input type="password" style={inputStyle} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
-          </div>
-          <div>
-            <label style={labelStyle}>Role</label>
-            <select style={inputStyle} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+          <Field label="Username" required error={errors.username}>
+            <input style={fieldInputStyle(!!errors.username)} value={form.username} onChange={(e) => handleChange("username", e.target.value)} />
+          </Field>
+          <Field label="Email" hint={HINTS.email}>
+            <input type="email" style={inputStyle} value={form.email} onChange={(e) => handleChange("email", e.target.value)} />
+          </Field>
+          <Field label="Password" required hint={HINTS.password} error={errors.password}>
+            <input type="password" style={fieldInputStyle(!!errors.password)} value={form.password} onChange={(e) => handleChange("password", e.target.value)} />
+          </Field>
+          <Field label="Role">
+            <select style={inputStyle} value={form.role} onChange={(e) => handleChange("role", e.target.value)}>
               {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
-          </div>
-          <div>
-            <label style={labelStyle}>First name</label>
-            <input style={inputStyle} value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} required />
-          </div>
-          <div>
-            <label style={labelStyle}>Last name</label>
-            <input style={inputStyle} value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} />
-          </div>
+          </Field>
+          <Field label="First name" required hint={HINTS.personName} error={errors.first_name}>
+            <input style={fieldInputStyle(!!errors.first_name)} value={form.first_name} onChange={(e) => handleChange("first_name", e.target.value)} />
+          </Field>
+          <Field label="Last name" hint={HINTS.personName} error={errors.last_name}>
+            <input style={fieldInputStyle(!!errors.last_name)} value={form.last_name} onChange={(e) => handleChange("last_name", e.target.value)} />
+          </Field>
         </div>
 
         {Number(form.role) === EMPLOYEE_ROLE && (
           <div>
             <h4 style={{ margin: "0 0 10px", fontSize: 12.5, color: tokens.inkMuted, fontFamily: mono }}>Employee details</h4>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
-              <div>
-                <label style={labelStyle}>Employee ID</label>
-                <input style={inputStyle} value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })} required />
-              </div>
-              <div>
-                <label style={labelStyle}>Phone</label>
-                <input style={inputStyle} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-              </div>
-              <div>
-                <label style={labelStyle}>Department</label>
-                <input style={inputStyle} value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
-              </div>
-              <div>
-                <label style={labelStyle}>Job title</label>
-                <input style={inputStyle} value={form.job_title} onChange={(e) => setForm({ ...form, job_title: e.target.value })} />
-              </div>
-              <div>
-                <label style={labelStyle}>Date of joining</label>
-                <input type="date" style={inputStyle} value={form.date_of_joining} onChange={(e) => setForm({ ...form, date_of_joining: e.target.value })} required />
-              </div>
-              <div>
-                <label style={labelStyle}>Bank account</label>
-                <input style={inputStyle} value={form.bank_account} onChange={(e) => setForm({ ...form, bank_account: e.target.value })} />
-              </div>
+              <Field label="Employee ID" required hint={HINTS.employeeId} error={errors.employee_id}>
+                <input style={fieldInputStyle(!!errors.employee_id)} value={form.employee_id} onChange={(e) => handleChange("employee_id", e.target.value.toUpperCase())} />
+              </Field>
+              <Field label="Phone" hint={HINTS.phone} error={errors.phone}>
+                <input style={fieldInputStyle(!!errors.phone)} value={form.phone} onChange={(e) => handleChange("phone", e.target.value)} />
+              </Field>
+              <Field label="Department">
+                <input style={inputStyle} value={form.department} onChange={(e) => handleChange("department", e.target.value)} />
+              </Field>
+              <Field label="Job title">
+                <input style={inputStyle} value={form.job_title} onChange={(e) => handleChange("job_title", e.target.value)} />
+              </Field>
+              <Field label="Date of joining" required error={errors.date_of_joining}>
+                <input type="date" style={fieldInputStyle(!!errors.date_of_joining)} value={form.date_of_joining} onChange={(e) => handleChange("date_of_joining", e.target.value)} />
+              </Field>
+              <Field label="Bank account" hint={HINTS.bankAccount} error={errors.bank_account}>
+                <input style={fieldInputStyle(!!errors.bank_account)} value={form.bank_account} onChange={(e) => handleChange("bank_account", e.target.value)} />
+              </Field>
             </div>
           </div>
         )}

@@ -1,5 +1,9 @@
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, RegexValidator
+from django.db.models import Max
+
+code_validator = RegexValidator(r"^[A-Z0-9_]{2,30}$", "2–30 uppercase letters, numbers, or underscores.")
 
 
 class SalaryRule(models.Model):
@@ -16,14 +20,33 @@ class SalaryRule(models.Model):
         ("formula", "Formula"),
     ]
 
-    code = models.CharField(max_length=30, unique=True)
+    # Each category owns a fixed 100-wide band of sequence numbers, in
+    # payroll computation order (basic -> allowances -> gross -> deductions
+    # -> net). New rules are auto-appended within their category's band
+    # (see next_sequence_for_category) so cross-category ordering is
+    # always correct without the user ever entering a sequence by hand.
+    CATEGORY_BANDS = {
+        "basic": 10,
+        "allowance": 100,
+        "gross": 200,
+        "deduction": 300,
+        "net": 400,
+    }
+    BAND_WIDTH = 100
+    SEQUENCE_STEP = 10
+
+    code = models.CharField(max_length=30, unique=True, validators=[code_validator])
     name = models.CharField(max_length=100)
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
     sequence = models.PositiveIntegerField(default=10)
     computation_type = models.CharField(max_length=20, choices=COMPUTATION_CHOICES)
 
-    amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    percentage = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    amount = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)]
+    )
+    percentage = models.DecimalField(
+        max_digits=6, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0)]
+    )
     percentage_of_code = models.CharField(max_length=30, null=True, blank=True)
     formula = models.CharField(max_length=255, null=True, blank=True)
 
@@ -31,6 +54,15 @@ class SalaryRule(models.Model):
 
     class Meta:
         ordering = ["sequence"]
+
+    @classmethod
+    def next_sequence_for_category(cls, category, exclude_pk=None):
+        band_start = cls.CATEGORY_BANDS[category]
+        qs = cls.objects.filter(sequence__gte=band_start, sequence__lt=band_start + cls.BAND_WIDTH)
+        if exclude_pk is not None:
+            qs = qs.exclude(pk=exclude_pk)
+        current_max = qs.aggregate(m=Max("sequence"))["m"]
+        return current_max + cls.SEQUENCE_STEP if current_max is not None else band_start
 
     def clean(self):
         if self.computation_type == "fixed" and self.amount is None:

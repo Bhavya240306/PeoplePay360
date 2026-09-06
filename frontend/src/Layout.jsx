@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { Outlet, NavLink } from "react-router-dom";
-import { tokens, serifDisplay, sans, mono } from "./tokens";
+import { tokens, serifDisplay, sans, mono, panelStyle, buttonPrimary, buttonSecondary, overlayStyle } from "./tokens";
 import { useAuth, ROLE_LEVEL } from "./AuthContext";
 import NotificationsBell from "./components/NotificationsBell";
 
@@ -52,6 +52,7 @@ const groups = [
 
 export default function Layout() {
   const { user, logout, roleLevel } = useAuth();
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
   const visibleGroups = groups
     .filter((g) => !g.employeeOnly || roleLevel === ROLE_LEVEL.Employee)
     .map((g) => ({ ...g, links: g.links.filter((l) => roleLevel >= (l.minRole ?? ROLE_LEVEL.Employee)) }))
@@ -86,7 +87,7 @@ export default function Layout() {
             <div style={{ fontFamily: mono, fontSize: 10.5, color: tokens.inkMuted }}>{user?.role_display}</div>
           </NavLink>
           <button
-            onClick={logout}
+            onClick={() => setConfirmingLogout(true)}
             style={{ border: "none", background: "none", color: tokens.inkMuted, fontSize: 11.5, cursor: "pointer", textDecoration: "underline" }}
           >
             Log out
@@ -129,6 +130,23 @@ export default function Layout() {
       <main>
         <Outlet />
       </main>
+
+      {confirmingLogout && (
+        <div style={overlayStyle}>
+          <div style={{ ...panelStyle, width: 380 }}>
+            <h3 style={{ margin: "0 0 8px", fontSize: 15 }}>Log out?</h3>
+            <p style={{ margin: "0 0 18px", fontSize: 13, color: tokens.inkMuted, lineHeight: 1.5 }}>
+              You'll need to sign in again to access PeoplePay360. Any unsaved changes on this page will be lost.
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button style={buttonSecondary} onClick={() => setConfirmingLogout(false)}>Cancel</button>
+              <button style={{ ...buttonPrimary, background: tokens.oxblood, borderColor: tokens.oxblood }} onClick={logout}>
+                Log out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

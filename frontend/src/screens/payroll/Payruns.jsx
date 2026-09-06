@@ -123,11 +123,11 @@ function PayrunWizard({ onClose, onCreated }) {
         {step === 1 && (
           <form onSubmit={handleContinue}>
             <div style={{ marginBottom: 10 }}>
-              <label style={labelStyle}>Name</label>
+              <label style={labelStyle}>Name<span style={{ color: tokens.oxblood, marginLeft: 3 }}>*</span></label>
               <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. February 2026" required />
             </div>
             <div style={{ marginBottom: 10 }}>
-              <label style={labelStyle}>Salary structure</label>
+              <label style={labelStyle}>Salary structure<span style={{ color: tokens.oxblood, marginLeft: 3 }}>*</span></label>
               <select style={inputStyle} value={structureId} onChange={(e) => setStructureId(e.target.value)} required>
                 <option value="">Select…</option>
                 {structures.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -135,11 +135,11 @@ function PayrunWizard({ onClose, onCreated }) {
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
               <div>
-                <label style={labelStyle}>Period start</label>
+                <label style={labelStyle}>Period start<span style={{ color: tokens.oxblood, marginLeft: 3 }}>*</span></label>
                 <input type="date" style={inputStyle} value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} required />
               </div>
               <div>
-                <label style={labelStyle}>Period end</label>
+                <label style={labelStyle}>Period end<span style={{ color: tokens.oxblood, marginLeft: 3 }}>*</span></label>
                 <input type="date" style={inputStyle} value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} required />
               </div>
             </div>

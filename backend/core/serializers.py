@@ -33,6 +33,9 @@ class ContractSerializer(serializers.ModelSerializer):
         end_date = data.get("end_date", getattr(self.instance, "end_date", None))
         is_active = data.get("is_active", getattr(self.instance, "is_active", True))
 
+        if start_date and end_date and end_date < start_date:
+            raise serializers.ValidationError("End date must be on or after the start date.")
+
         if is_active and employee and start_date:
             overlapping = Contract.objects.filter(employee=employee, is_active=True)
             if self.instance:
@@ -56,6 +59,13 @@ class AttendanceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Attendance
         fields = "__all__"
+
+    def validate(self, data):
+        check_in = data.get("check_in", getattr(self.instance, "check_in", None))
+        check_out = data.get("check_out", getattr(self.instance, "check_out", None))
+        if check_in and check_out and check_out <= check_in:
+            raise serializers.ValidationError("Check-out time must be after check-in time.")
+        return data
 
 
 class ScheduleSerializer(serializers.ModelSerializer):

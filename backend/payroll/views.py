@@ -20,6 +20,18 @@ class SalaryRuleViewSet(viewsets.ModelViewSet):
     serializer_class = SalaryRuleSerializer
     permission_classes = [IsHRPayrollUserOrAbove]
 
+    def perform_create(self, serializer):
+        category = serializer.validated_data["category"]
+        serializer.save(sequence=SalaryRule.next_sequence_for_category(category))
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        new_category = serializer.validated_data.get("category", instance.category)
+        if new_category != instance.category:
+            serializer.save(sequence=SalaryRule.next_sequence_for_category(new_category, exclude_pk=instance.pk))
+        else:
+            serializer.save()
+
 
 class SalaryStructureViewSet(viewsets.ModelViewSet):
     queryset = SalaryStructure.objects.all()

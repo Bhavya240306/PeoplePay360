@@ -1,9 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { tokens, mono, sans, panelStyle, buttonPrimary, inputStyle, labelStyle, numeral, overlayStyle } from "../tokens";
+import { tokens, mono, sans, panelStyle, buttonPrimary, numeral, overlayStyle } from "../tokens";
 import StatusBadge from "../components/StatusBadge";
 import ViewToggle from "../components/ViewToggle";
+import Field, { fieldInputStyle } from "../components/Field";
 import { coreApi } from "../api/coreApi";
+import {
+  validateEmployeeId, validatePersonName, validateEmail, validatePhone, validateBankAccount,
+  validateRequired, runValidators, hasErrors, HINTS,
+} from "../validators";
 
 export default function Employees() {
   const [employees, setEmployees] = useState([]);
@@ -104,16 +109,43 @@ export default function Employees() {
   );
 }
 
+const EMPLOYEE_FIELDS = [
+  ["employee_id", "Employee ID", validateEmployeeId, HINTS.employeeId, true],
+  ["first_name", "First name", validatePersonName, HINTS.personName, true],
+  ["last_name", "Last name", (v) => validatePersonName(v, { optional: true }), HINTS.personName, false],
+  ["email", "Email", validateEmail, HINTS.email, true],
+  ["phone", "Phone", validatePhone, HINTS.phone, false],
+  ["bank_account", "Bank account", validateBankAccount, HINTS.bankAccount, false],
+  ["department", "Department", null, null, false],
+  ["job_title", "Job title", null, null, false],
+];
+
 function EmployeeCreateForm({ onClose, onCreated }) {
   const [form, setForm] = useState({
-    employee_id: "", first_name: "", last_name: "", email: "", phone: "",
+    employee_id: "", first_name: "", last_name: "", email: "", phone: "", bank_account: "",
     department: "", job_title: "", date_of_joining: "", is_active: true,
   });
+  const [errors, setErrors] = useState({});
   const [error, setError] = useState("");
+
+  function validateAll() {
+    const map = {};
+    EMPLOYEE_FIELDS.forEach(([key, , validate]) => { if (validate) map[key] = validate; });
+    map.date_of_joining = validateRequired;
+    return runValidators(form, map);
+  }
+
+  function handleChange(key, value) {
+    setForm({ ...form, [key]: value });
+    if (errors[key]) setErrors({ ...errors, [key]: "" });
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
+    const fieldErrors = validateAll();
+    setErrors(fieldErrors);
+    if (hasErrors(fieldErrors)) return;
     try {
       await coreApi.createEmployee(form);
       onCreated();
@@ -129,22 +161,20 @@ function EmployeeCreateForm({ onClose, onCreated }) {
           <h3 style={{ margin: 0, fontSize: 15 }}>New employee entry</h3>
           <button type="button" onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: tokens.inkMuted }}>✕</button>
         </div>
-        {[
-          ["employee_id", "Employee ID"], ["first_name", "First name"], ["last_name", "Last name"],
-          ["email", "Email"], ["phone", "Phone"], ["department", "Department"], ["job_title", "Job title"],
-        ].map(([key, label]) => (
-          <div key={key} style={{ marginBottom: 10 }}>
-            <label style={labelStyle}>{label}</label>
-            <input style={inputStyle} value={form[key]}
-              onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-              required={["employee_id", "first_name", "email"].includes(key)} />
-          </div>
+        {EMPLOYEE_FIELDS.map(([key, label, , hint, required]) => (
+          <Field key={key} label={label} hint={hint} error={errors[key]} required={required} style={{ marginBottom: 12 }}>
+            <input
+              style={fieldInputStyle(!!errors[key])} value={form[key]}
+              onChange={(e) => handleChange(key, key === "employee_id" ? e.target.value.toUpperCase() : e.target.value)}
+            />
+          </Field>
         ))}
-        <div style={{ marginBottom: 16 }}>
-          <label style={labelStyle}>Date of joining</label>
-          <input type="date" style={inputStyle} value={form.date_of_joining}
-            onChange={(e) => setForm({ ...form, date_of_joining: e.target.value })} required />
-        </div>
+        <Field label="Date of joining" required error={errors.date_of_joining} style={{ marginBottom: 16 }}>
+          <input
+            type="date" style={fieldInputStyle(!!errors.date_of_joining)} value={form.date_of_joining}
+            onChange={(e) => handleChange("date_of_joining", e.target.value)}
+          />
+        </Field>
         {error && <div style={{ color: tokens.oxblood, fontSize: 12, marginBottom: 10 }}>{error}</div>}
         <button type="submit" style={buttonPrimary}>Record entry</button>
       </form>
